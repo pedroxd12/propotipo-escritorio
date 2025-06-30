@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Importar flutter_svg
+import 'package:flutter_svg/flutter_svg.dart';  //Importar flutter_svg
 import 'package:intl/intl.dart';
 import '../models/agenda_event.dart';
 import '../widgets/agenda_item_widget.dart';
@@ -7,6 +7,8 @@ import '../widgets/notification_panel_widget.dart';
 import '../theme/app_colors.dart';
 import 'service_orders_screen.dart';
 import 'clients_screen.dart';
+import 'tecnicos_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -237,9 +239,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context) => const ClientsScreen()),
             );
           }),
-          _buildAppBarNavItem("Técnicos", Icons.construction_outlined, false,
-                  () {
-                // Acción para Técnicos
+          _buildAppBarNavItem("Técnicos", Icons.construction_outlined, false, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const TechniciansScreen()),
+            );
               }),
           _buildAppBarNavItem("Usuarios", Icons.manage_accounts_outlined, false,
                   () {
@@ -349,6 +354,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Aquí implementarías la lógica para cambiar la vista
                 },
               ),
+
             ],
           ),
         ),

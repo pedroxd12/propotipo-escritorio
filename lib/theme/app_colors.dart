@@ -17,11 +17,11 @@ class AppColors {
 
   static const Color eventBlue = Color(0xFF007BFF);
   static const Color eventGreen = Color(0xFF28A745);
-  static const Color eventOrange = Color(0xFFFF9800);
+  static const Color eventOrange = Color(0xFFFF6D00);
   static const Color eventRed = Color(0xFFF44336);
 
   // Colores de la imagen de la agenda
-  static const Color agendaHeaderBackground = Color(0xFF3A4D6B); // Azul oscuro de la barra
+  static const Color agendaHeaderBackground = Color(0xFF0D47A1); // Azul oscuro de la barraD6
   static const Color agendaActiveTab = Colors.white;
   static const Color agendaInactiveTab = Colors.grey;
 

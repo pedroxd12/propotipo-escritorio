@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/agenda_event.dart'; // Asegúrate que la ruta sea correcta
-// import '../theme/app_colors.dart'; // No parece usarse directamente aquí
+import '../theme/app_colors.dart'; // No parece usarse directamente aquí
 
 class AgendaItemWidget extends StatelessWidget {
   final AgendaEvent event;
