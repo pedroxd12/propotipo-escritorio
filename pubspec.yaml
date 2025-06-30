@@ -1,30 +1,39 @@
 name: serviceflow
-description: A new Flutter project.
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.7.0
+
 
 dependencies:
   flutter:
     sdk: flutter
-
-  # Localizations (requiere intl 0.20.2)
-  flutter_localizations:
+  flutter_localizations: # <--- AGREGA ESTA LÍNEA
     sdk: flutter
-
-  # Dependencias de tu proyecto
-  intl: ^0.20.2
   cupertino_icons: ^1.0.2
-  flutter_svg: ^2.0.7  # ✅ Paquete para trabajar con SVG
+  intl: ^0.19.0 # Para formateo de fechas y horas
+  flutter_svg: ^2.0.9 # Si tu logo fuera SVG, si es PNG no es necesario para el logo.
+  # Para animaciones más avanzadas, puedes considerar:
+  # animations: ^2.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1
 
+
+  flutter_lints: ^5.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
-
   assets:
-    - assets/images/service_flow_logo.svg  # ✅ Ruta al archivo SVG
+    - assets/images/service_flow_logo.svg
