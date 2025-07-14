@@ -206,6 +206,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
     }
   }
 
+
+
   void _clearForm() {
     _nombreController.clear();
     _apellidoPaternoController.clear();

@@ -81,12 +81,13 @@ class AppTheme {
         ),
       ),
 
-     // cardTheme: CardTheme(
-     //   elevation: 2,
-      //  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-     //   color: AppColors.surfaceColor,
-    //  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-   //   ),
+    /* cardTheme: CardTheme(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: AppColors.surfaceColor,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+      ),
+      */
     );
   }
 }
