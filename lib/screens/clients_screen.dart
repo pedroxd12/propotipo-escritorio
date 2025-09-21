@@ -125,10 +125,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
   List<Client> _filteredClients = [];
 
   // Colores consistentes
-  final Color _primaryColor = const Color(0xFF0D47A1); // Azul oscuro principal
-  final Color _accentColor = const Color(0xFF1976D2); // Azul medio para acentos
+  final Color _primaryColor = const Color(0xFF1A66FF); // Azul oscuro principal
+  final Color _accentColor = const Color(0xFF4EA3FF); // Azul medio para acentos
   final Color _lightGrey = Colors.grey.shade200;
-  final Color _darkGreyText = Colors.grey.shade700;
+  final Color _darkGreyText = const Color(0xFF0D3049); // Azul medio para acentos
   final Color _headerTextColor = Colors.white;
 
 

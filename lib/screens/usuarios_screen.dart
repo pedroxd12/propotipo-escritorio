@@ -1,75 +1,62 @@
 import 'package:flutter/material.dart';
 
-class Technician {
+class user {
   final String id;
   final String nombre;
   final String apellidoPaterno;
   final String apellidoMaterno;
   final String correo;
   final String telefono;
-  final String especialidad;
-  final List<String> habilidades;
-  final List<String> serviciosRealizados;
 
-  Technician({
+
+  user({
     required this.id,
     required this.nombre,
     required this.apellidoPaterno,
     required this.apellidoMaterno,
     required this.correo,
     required this.telefono,
-    required this.especialidad,
-    required this.habilidades,
-    required this.serviciosRealizados,
   });
 
   String get nombreCompleto => '$nombre $apellidoPaterno $apellidoMaterno';
 }
 
 
-class TechniciansScreen extends StatefulWidget {
-  const TechniciansScreen({super.key});
+class userScreen extends StatefulWidget {
+  const  userScreen({super.key});
 
   @override
-  State<TechniciansScreen> createState() => _TechniciansScreenState();
+  State<userScreen> createState() => _userScreenState();
 }
 
-class _TechniciansScreenState extends State<TechniciansScreen> {
+class _userScreenState extends State<userScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _nombreController = TextEditingController();
   final TextEditingController _apellidoPaternoController = TextEditingController();
   final TextEditingController _apellidoMaternoController = TextEditingController();
   final TextEditingController _correoController = TextEditingController();
   final TextEditingController _telefonoController = TextEditingController();
-  final TextEditingController _especialidadController = TextEditingController();
-  final TextEditingController _habilidadesController = TextEditingController();
 
-  final List<Technician> _technicians = [
-    Technician(
+  final List<user> _user = [
+    user(
       id: '1',
       nombre: 'Carlos',
       apellidoPaterno: 'Sánchez',
       apellidoMaterno: 'Ramírez',
       correo: 'carlos@example.com',
       telefono: '312-000-1111',
-      especialidad: 'Climatización',
-      habilidades: ['Instalación', 'Mantenimiento'],
-      serviciosRealizados: ['22101', '33104'],
     ),
-    Technician(
+    user(
       id: '2',
       nombre: 'María',
       apellidoPaterno: 'Gómez',
       apellidoMaterno: 'Luna',
       correo: 'maria@example.com',
       telefono: '312-000-2222',
-      especialidad: 'Paneles Solares',
-      habilidades: ['Mantenimiento', 'Reparación'],
-      serviciosRealizados: ['22203'],
     ),
   ];
-  Technician? _selectedTechnician;
-  List<Technician> _filteredTechnicians = [];
+  user? _selecteduser;
+  List<user> _filtereduser = [];
 
 
   final Color _primaryColor = const Color(0xFF0D47A1);
@@ -81,22 +68,22 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
   @override
   void initState() {
     super.initState();
-    _filteredTechnicians = _technicians;
-    if (_technicians.isNotEmpty) {
-      _selectedTechnician = _technicians.first;
+    _filtereduser = _user;
+    if (_user.isNotEmpty) {
+      _selecteduser = _user.first;
     }
   }
 
-  void _filterTechnicians(String query) {
+  void _filteruser(String query) {
     if (query.isEmpty) {
       setState(() {
-        _filteredTechnicians = _technicians;
+        _filtereduser = _user;
       });
       return;
     }
 
     setState(() {
-      _filteredTechnicians = _technicians.where((tech) {
+      _filtereduser = _user.where((tech) {
         final q = query.toLowerCase();
         return tech.nombreCompleto.toLowerCase().contains(q) ||
             tech.correo.toLowerCase().contains(q) ||
@@ -106,35 +93,29 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
   }
 
 
-  void _addTechnician() {
+  void _adduser() {
     // Check if both nombre and apellidoPaterno are NOT empty
     if (_nombreController.text.isNotEmpty &&
         _apellidoPaternoController.text.isNotEmpty) {
-      final nuevo = Technician(
-        id: 'T${_technicians.length + 1}',
+      final nuevo = user(
+        id: 'T${_user.length + 1}',
         nombre: _nombreController.text,
         apellidoPaterno: _apellidoPaternoController.text,
         apellidoMaterno: _apellidoMaternoController.text,
         correo: _correoController.text,
         telefono: _telefonoController.text,
-        especialidad: _especialidadController.text,
-        habilidades: _habilidadesController.text
-            .split(',')
-            .map((s) => s.trim())
-            .toList(),
-        serviciosRealizados: [],
       );
 
       setState(() {
-        _technicians.add(nuevo);
-        _filterTechnicians(_searchController.text);
-        _selectedTechnician = nuevo;
+        _user.add(nuevo);
+        _filteruser(_searchController.text);
+        _selecteduser = nuevo;
         _clearForm();
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Técnico agregado exitosamente. ✅'),
+          content: const Text('Usuario agregado exitosamente. ✅'),
           // Added an emoji for better feedback
           backgroundColor: Colors.green.shade700,
         ),
@@ -157,8 +138,6 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
     _apellidoMaternoController.clear();
     _correoController.clear();
     _telefonoController.clear();
-    _especialidadController.clear();
-    _habilidadesController.clear();
   }
 
   @override
@@ -171,7 +150,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Gestión de Técnicos', style: TextStyle(
+        title: Text('Gestión de Usuarios', style: TextStyle(
             color: _headerTextColor, fontWeight: FontWeight.bold)),
         backgroundColor: _primaryColor,
         elevation: 4,
@@ -186,7 +165,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
               flex: isLargeScreen ? 3 : 2,
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(right: 10),
-                child: _buildAddTechnicianForm(),
+                child: _buildAdduserForm(),
               ),
             ),
             const VerticalDivider(width: 20, thickness: 1),
@@ -194,26 +173,10 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
               flex: isLargeScreen ? 4 : 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTechnicianListSection(),
+               children: [
+                  _builduserListSection(),
                   const SizedBox(height: 20),
-                  if (_selectedTechnician != null)
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: isLargeScreen
-                            ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: _buildTechnicianDetailsCard(
-                                'Información Técnica',
-                                _buildTechnicianDetails(_selectedTechnician!))),
-                            const SizedBox(width: 20),
-                            Expanded(child: _buildTechnicianDetailsCard(
-                                'Servicios Realizados',
-                                _buildTechnicianServices(
-                                    _selectedTechnician!))),
-                          ],
-                        )
+                        /*
                             : Column(
                           children: [
                             _buildTechnicianDetailsCard('Información Técnica',
@@ -224,8 +187,8 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
                           ],
                         ),
                       ),
-                    ),
-                ],
+                    ),*/
+               ],
               ),
             ),
           ],
@@ -251,7 +214,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
   }
 
 
-  Widget _buildAddTechnicianForm() {
+  Widget _buildAdduserForm() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -272,7 +235,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
                 ),
               ),
               child: Text(
-                'Agregar Técnico',
+                'Agregar Usuario',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: _headerTextColor,
@@ -298,20 +261,12 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
             ]),
 
             const SizedBox(height: 24),
-            _buildSectionTitle('Especialización', icon: Icons.engineering_outlined),
-            _buildTextField(_especialidadController, 'Especialidad*', icon: Icons.workspace_premium_outlined),
-
-            const SizedBox(height: 24),
-            _buildSectionTitle('Habilidades Técnicas', icon: Icons.build_outlined),
-            _buildTextField(_habilidadesController, 'Habilidades (separadas por coma)', icon: Icons.handyman_outlined),
-
-            const SizedBox(height: 24),
             Align(
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.person_add_alt_1),
-                label: const Text('Guardar Técnico'),
-                onPressed: _addTechnician,
+                label: const Text('Guardar Usuario'),
+                onPressed: _adduser,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
                   foregroundColor: _headerTextColor,
@@ -360,7 +315,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
     );
   }
 
-  Widget _buildTechnicianListSection() {
+  Widget _builduserListSection() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -381,7 +336,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
                 ),
               ),
               child: Text(
-                'Directorio de Técnicos',
+                'Directorio de usuarios',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: _headerTextColor, fontSize: 20, fontWeight: FontWeight.bold),
               ),
@@ -397,11 +352,11 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
               ),
-              onChanged: _filterTechnicians,
+              onChanged: _filteruser,
             ),
 
             const SizedBox(height: 12),
-            _buildTechnicianListHeader(),
+            _builduserListHeader(),
             /* _buildSearchBar(),
             const SizedBox(height: 12),
             _buildTechnicianListHeader(),
@@ -410,32 +365,32 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
 
             SizedBox(
               height: 200,
-              child: _filteredTechnicians.isEmpty
+              child: _filtereduser.isEmpty
                   ? Center(child: Text('No se encontraron técnicos.',
                   style: TextStyle(
                       color: _darkGreyText, fontStyle: FontStyle.italic)))
                   : ListView.separated(
-                itemCount: _filteredTechnicians.length,
+                itemCount: _filtereduser.length,
                 separatorBuilder: (_, __) =>
                     Divider(height: 1, color: Colors.grey.shade300),
                 itemBuilder: (_, index) {
-                  final tech = _filteredTechnicians[index];
-                  final isSelected = _selectedTechnician?.id == tech.id;
+                  final tech = _filtereduser[index];
+                  final isSelected = _selecteduser?.id == tech.id;
                   return Material(
                     color: isSelected ? _accentColor.withOpacity(0.15) : Colors
                         .transparent,
                     child: InkWell(
-                      onTap: () => setState(() => _selectedTechnician = tech),
+                      onTap: () => setState(() => _selecteduser= tech),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 10.0,
                             horizontal: 8.0),
                         child: Row(
                           children: [
-                            _techListCell(
+                            _userListCell(
                                 tech.id, flex: 1, isSelected: isSelected),
-                            _techListCell(tech.nombreCompleto, flex: 4,
+                            _userListCell(tech.nombreCompleto, flex: 4,
                                 isSelected: isSelected),
-                            _techListCell(
+                            _userListCell(
                                 tech.correo, flex: 4, isSelected: isSelected),
                           ],
                         ),
@@ -451,7 +406,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
     );
   }
 
-  Widget _buildTechnicianListHeader() {
+  Widget _builduserListHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 8.0),
       decoration: BoxDecoration(
@@ -460,15 +415,15 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
       ),
       child: Row(
         children: [
-          _techListCell('ID', flex: 1, isHeader: true),
-          _techListCell('Nombre Completo', flex: 4, isHeader: true),
-          _techListCell('Correo Electrónico', flex: 4, isHeader: true),
+          _userListCell('ID', flex: 1, isHeader: true),
+          _userListCell('Nombre Completo', flex: 4, isHeader: true),
+          _userListCell('Correo Electrónico', flex: 4, isHeader: true),
         ],
       ),
     );
   }
 
-  Widget _techListCell(String text,
+  Widget _userListCell(String text,
       {int flex = 1, bool isHeader = false, bool isSelected = false}) {
     return Expanded(
       flex: flex,
@@ -489,7 +444,7 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
       ),
     );
   }
-  Widget _buildTechnicianDetailsCard(String title, Widget content) {
+  Widget _builduserDetailsCard(String title, Widget content) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -509,47 +464,4 @@ class _TechniciansScreenState extends State<TechniciansScreen> {
     );
   }
 
-  Widget _buildTechnicianDetails(Technician tech) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Especialidad: ${tech.especialidad}'),
-        Text('Teléfono: ${tech.telefono}'),
-        Text('Correo: ${tech.correo}'),
-        Text('Habilidades: ${tech.habilidades.join(', ')}'),
-      ],
-    );
-  }
-
-  Widget _buildTechnicianServices(Technician tech) {
-    if (tech.serviciosRealizados.isEmpty) {
-      return Text('No hay servicios registrados.',
-          style: TextStyle(fontStyle: FontStyle.italic, color: _darkGreyText));
-    }
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: NeverScrollableScrollPhysics(),
-      itemCount: tech.serviciosRealizados.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, index) {
-        final service = tech.serviciosRealizados[index];
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            color: _lightGrey.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade300),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.build_circle_outlined, size: 18, color: _accentColor),
-              const SizedBox(width: 8),
-              Text('Servicio No. $service',
-                  style: TextStyle(fontSize: 13, color: _darkGreyText)),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
