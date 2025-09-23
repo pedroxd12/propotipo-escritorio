@@ -4,9 +4,9 @@ import 'package:intl/date_symbol_data_local.dart'; // Importante para localizaci
 import 'package:serviceflow/screens/home_screen.dart';
 import 'package:serviceflow/screens/login_screen.dart';
 import 'package:serviceflow/screens/order_detail_screen.dart';
-import 'package:serviceflow/screens/splash_screen.dart';
-import 'package:serviceflow/theme/app_theme.dart';
-import 'package:serviceflow/screens/service_orders_screen.dart';
+import 'package:serviceflow/design/screens/splash_screen.dart';
+import 'package:serviceflow/core/theme/app_theme.dart';
+import 'package:serviceflow/design/screens/service_orders/service_orders_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
