@@ -1,7 +1,10 @@
+// lib/design/screens/auth/login_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Importar flutter_svg
-import '../theme/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:serviceflow/core/theme/app_colors.dart';
 
+// Pantalla de Login rediseñada para ser limpia, centrada y directa.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,112 +16,103 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
 
-  // Controladores para los campos de texto
-  final TextEditingController _userController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
   void _login() {
     if (_formKey.currentState!.validate()) {
-      // Lógica de inicio de sesión (simulada)
-      print('Usuario: ${_userController.text}');
-      print('Contraseña: ${_passwordController.text}');
-      Navigator.of(context).pushReplacementNamed('/home');
+      // La lógica de autenticación se mantiene, pero la navegación es más robusta.
+      context.go('/home');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(32.0),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400), // Ancho máximo para el formulario
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  SvgPicture.asset( // Cambiado de Image.asset a SvgPicture.asset
-                    'assets/images/service_flow_logo.svg', // Ruta al archivo SVG
-                    height: 80, // Ajusta el tamaño según sea necesario
-                    // colorFilter: ColorFilter.mode(AppColors.primaryColor, BlendMode.srcIn), // Descomenta si tu SVG es de un solo color y quieres teñirlo
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Iniciar sesión',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      color: AppColors.textPrimaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  TextFormField(
-                    controller: _userController,
-                    decoration: const InputDecoration(
-                      hintText: 'Usuario',
-                      prefixIcon: Icon(Icons.person_outline, color: AppColors.textSecondaryColor),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingrese su usuario';
-                      }
-                      return null;
-                    },
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      hintText: 'Contraseña',
-                      prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondaryColor),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: AppColors.textSecondaryColor,
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Card(
+              elevation: 8,
+              shadowColor: Colors.black.withOpacity(0.1),
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      SvgPicture.asset(
+                        'assets/images/service_flow_logo.svg',
+                        height: 60,
+                        // colorFilter eliminado para mostrar el logo original
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Bienvenido a ServiceFlow',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Inicia sesión para continuar',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 32),
+                      TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Correo Electrónico',
+                          prefixIcon: Icon(Icons.email_outlined),
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty || !value.contains('@')) {
+                            return 'Por favor, ingrese un correo válido';
+                          }
+                          return null;
                         },
                       ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingrese su contraseña';
-                      }
-                      return null;
-                    },
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            ),
+                            onPressed: () {
+                              setState(() => _obscurePassword = !_obscurePassword);
+                            },
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, ingrese su contraseña';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: _login,
+                        child: const Text('Ingresar'),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Funcionalidad de recuperación no implementada.')),
+                          );
+                        },
+                        child: const Text('¿Olvidaste tu contraseña?'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _login,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Ingresar'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () {
-                      // Lógica para "olvidé mi contraseña"
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Funcionalidad "Olvidé mi contraseña" no implementada.')),
-                      );
-                    },
-                    child: Text(
-                      '¿Has olvidado tu contraseña?',
-                      style: TextStyle(color: AppColors.primaryColor, fontSize: 14),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

@@ -1,16 +1,38 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // <-- IMPORTANTE: Añade esta línea
-import 'package:intl/date_symbol_data_local.dart'; // Importante para localización de fechas
-import 'package:serviceflow/screens/home_screen.dart';
-import 'package:serviceflow/screens/login_screen.dart';
-import 'package:serviceflow/screens/order_detail_screen.dart';
-import 'package:serviceflow/screens/splash_screen.dart';
-import 'package:serviceflow/theme/app_theme.dart';
-import 'package:serviceflow/screens/service_orders_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'package:serviceflow/core/routes/app_router.dart';
+import 'package:serviceflow/core/theme/app_theme.dart';
+import 'package:serviceflow/design/state/technician_provider.dart';
+import 'package:serviceflow/design/state/client_provider.dart';
+import 'package:window_manager/window_manager.dart'; // Importa el paquete
 
 void main() async {
+  // Asegura que los bindings de Flutter estén inicializados
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('es_ES', null); // Correcto para intl
+  await initializeDateFormatting('es_ES', null);
+
+  // --- CONFIGURACIÓN DEL TAMAÑO DE LA VENTANA ---
+  // Espera a que el gestor de la ventana esté listo
+  await windowManager.ensureInitialized();
+
+  // Define las opciones de la ventana
+  WindowOptions windowOptions = const WindowOptions(
+    size: Size(1280, 720),      // Tamaño inicial de la ventana
+    minimumSize: Size(1100, 600), // Tamaño mínimo permitido
+    center: true,               // Centra la ventana al iniciar
+    title: 'ServiceFlow',       // Título de la ventana
+  );
+
+  // Espera a que las opciones se apliquen y luego muestra la ventana
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+  // --- FIN DE LA CONFIGURACIÓN ---
+
   runApp(const MyApp());
 }
 
@@ -19,38 +41,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ServiceFlow',
-      theme: AppTheme.lightTheme,
-      debugShowCheckedModeBanner: false,
-
-      // Configuración de Localización para Material Widgets:
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => TechnicianProvider()),
+        ChangeNotifierProvider(create: (_) => ClientProvider()),
+        // Aquí puedes añadir más providers globales si los necesitas
       ],
-      supportedLocales: const [
-        Locale('es', 'ES'), // Español de España
-        // Locale('en', 'US'), // Si necesitas soportar inglés también
-      ],
-      // Opcional: define el idioma por defecto si quieres forzarlo
-      // locale: const Locale('es', 'ES'),
-
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/service_orders': (context) => const ServiceOrdersScreen(),
-        '/order_detail': (context) {
-          final String? orderId = ModalRoute.of(context)?.settings.arguments as String?;
-          if (orderId == null) {
-            return const Scaffold(body: Center(child: Text("Error: Order ID no proporcionado.")));
-          }
-          return OrderDetailScreen(orderId: orderId);
-        },
-      },
+      child: MaterialApp.router(
+        title: 'ServiceFlow',
+        theme: AppTheme.lightTheme,
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('es', 'ES'),
+        ],
+        routerConfig: AppRouter.router,
+      ),
     );
   }
 }

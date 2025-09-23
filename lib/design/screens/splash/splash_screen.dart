@@ -1,8 +1,11 @@
+// lib/design/screens/splash/splash_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Importar flutter_svg
-import '../theme/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:serviceflow/core/theme/app_colors.dart';
 
+// Animación de bienvenida mejorada: más sutil y profesional.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -11,68 +14,55 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
+  late AnimationController _controller;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-
-    _animationController = AnimationController(
+    _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200),
     );
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.7, curve: Curves.easeIn),
-      ),
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.3, 1.0, curve: Curves.elasticOut), // Animación de "rebote"
-      ),
+    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
     );
 
-    _animationController.forward();
+    _controller.forward();
 
-    Timer(const Duration(seconds: 3), () { // Duración total de la pantalla de carga
+    Timer(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        // Redirige a la pantalla de login después de la animación.
+        context.go('/login');
       }
     });
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surfaceColor, // O el color de fondo que prefieras para el splash
+      backgroundColor: AppColors.headerPrimary,
       body: Center(
-        child: ScaleTransition(
-          scale: _scaleAnimation,
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset( // Cambiado de Image.asset a SvgPicture.asset
-                  'assets/images/service_flow_logo.svg', // Ruta al archivo SVG
-                  width: 180,
-                  // height: 100, // Ajusta según tu logo
-                ),
-                const SizedBox(height: 20),
-                // Podrías añadir un Text('ServiceFlow') aquí si no está en el logo
-              ],
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: SvgPicture.asset(
+              'assets/images/service_flow_logo.svg',
+              width: 180,
+              // colorFilter eliminado para mostrar el logo original
             ),
           ),
         ),

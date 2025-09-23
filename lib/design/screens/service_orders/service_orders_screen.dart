@@ -1,5 +1,6 @@
+// lib/design/screens/service_orders/service_orders_screen.dart
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Para formateo de fechas
+import 'package:intl/intl.dart';
 
 // Modelo para una orden de servicio (datos de ejemplo)
 enum ServiceStatus { reparado, noFinalizada, enProceso, noSe }
@@ -102,8 +103,6 @@ class _ServiceOrdersScreenState extends State<ServiceOrdersScreen> {
         return Colors.yellow.shade100; // Amarillo claro para la fila
       case ServiceStatus.noSe:
         return Colors.grey.shade200; // Gris claro para la fila
-      default:
-        return Colors.white;
     }
   }
 
@@ -117,8 +116,6 @@ class _ServiceOrdersScreenState extends State<ServiceOrdersScreen> {
         return Colors.yellow.shade700;
       case ServiceStatus.noSe:
         return Colors.grey;
-      default:
-        return Colors.transparent;
     }
   }
 
@@ -142,14 +139,14 @@ class _ServiceOrdersScreenState extends State<ServiceOrdersScreen> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Lista de órdenes de servicio', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0D47A1), // Azul oscuro similar al de la imagen
-        elevation: 2,
-      ),
+      // SE ELIMINA LA SIGUIENTE LÍNEA:
+      // appBar: AppBar(
+      //   title: const Text('Lista de órdenes de servicio'),
+      // ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -380,7 +377,6 @@ class _ServiceOrdersScreenState extends State<ServiceOrdersScreen> {
 
 
   Widget _buildTableHeader() {
-    const headerStyle = TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13);
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
       decoration: BoxDecoration(
