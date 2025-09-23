@@ -1,57 +1,56 @@
 // lib/data/repositories/technician_repository.dart
-import 'package:serviceflow/data/models/technician_model.dart';
+import 'package:serviceflow/data/models/usuario_model.dart';
 
 class TechnicianRepository {
-  // En una aplicación real, esta lista estaría vacía y los datos se obtendrían de una API.
-  // Por ahora, usamos los datos de ejemplo que tenías.
-  final List<Technician> _technicians = [
-    Technician(
-      id: '1',
-      nombre: 'Carlos',
-      apellidoPaterno: 'Sánchez',
-      apellidoMaterno: 'Ramírez',
-      correo: 'carlos@example.com',
-      telefono: '312-000-1111',
-      especialidad: 'Climatización',
-      habilidades: ['Instalación', 'Mantenimiento'],
-      serviciosRealizados: ['22101', '33104'],
-    ),
-    Technician(
-      id: '2',
-      nombre: 'María',
-      apellidoPaterno: 'Gómez',
-      apellidoMaterno: 'Luna',
-      correo: 'maria@example.com',
-      telefono: '312-000-2222',
-      especialidad: 'Paneles Solares',
-      habilidades: ['Mantenimiento', 'Reparación'],
-      serviciosRealizados: ['22203'],
-    ),
+  final List<Usuario> _technicians = [
+    Usuario(
+        id: 'user-2',
+        empresaId: 'emp-1',
+        nombres: 'Carlos',
+        apellidoPaterno: 'Sánchez',
+        email: 'carlos@example.com',
+        telefono: '312-000-1111',
+        rol: 'Tecnico',
+        perfilTecnico: TecnicoPerfil(
+          especialidad: 'Climatización',
+          habilidades: [
+            Habilidad(id: 'hab-1', nombre: 'Instalación'),
+            Habilidad(id: 'hab-2', nombre: 'Mantenimiento Preventivo')
+          ],
+        )),
+    Usuario(
+        id: 'user-3',
+        empresaId: 'emp-1',
+        nombres: 'María',
+        apellidoPaterno: 'Gómez',
+        email: 'maria@example.com',
+        telefono: '312-000-2222',
+        rol: 'Tecnico',
+        perfilTecnico: TecnicoPerfil(
+          especialidad: 'Paneles Solares',
+          habilidades: [
+            Habilidad(id: 'hab-2', nombre: 'Mantenimiento Preventivo'),
+            Habilidad(id: 'hab-3', nombre: 'Reparación de Inversores')
+          ],
+        )),
   ];
 
-  /// Obtiene la lista completa de técnicos.
-  /// En el futuro, aquí se haría la llamada a la API (ej: GET /api/technicians).
-  Future<List<Technician>> getTechnicians() async {
-    // Simula un pequeño retraso de red para imitar una llamada a API.
+  Future<List<Usuario>> getTechnicians() async {
     await Future.delayed(const Duration(milliseconds: 400));
-    return _technicians;
+    return _technicians.where((u) => u.rol == 'Tecnico').toList();
   }
 
-  /// Añade un nuevo técnico a la lista.
-  /// En el futuro, aquí se haría la llamada a la API (ej: POST /api/technicians).
-  Future<Technician> addTechnician(Technician newTechnician) async {
+  Future<Usuario> addTechnician(Usuario newTechnician) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    // En la simulación, creamos un nuevo ID. En una app real, la API devolvería el objeto completo.
-    final technicianToAdd = Technician(
-      id: 'T${_technicians.length + 1}',
-      nombre: newTechnician.nombre,
+    final technicianToAdd = Usuario(
+      id: 'user-${_technicians.length + 2}',
+      empresaId: newTechnician.empresaId,
+      nombres: newTechnician.nombres,
       apellidoPaterno: newTechnician.apellidoPaterno,
-      apellidoMaterno: newTechnician.apellidoMaterno,
-      correo: newTechnician.correo,
+      email: newTechnician.email,
       telefono: newTechnician.telefono,
-      especialidad: newTechnician.especialidad,
-      habilidades: newTechnician.habilidades,
-      serviciosRealizados: [], // Empieza sin servicios
+      rol: 'Tecnico',
+      perfilTecnico: newTechnician.perfilTecnico,
     );
     _technicians.add(technicianToAdd);
     return technicianToAdd;

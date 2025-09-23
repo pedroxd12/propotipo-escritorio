@@ -1,9 +1,8 @@
 // lib/design/screens/tecnicos/tecnicos_screen.dart
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
-import 'package:serviceflow/data/models/technician_model.dart';
+import 'package:serviceflow/data/models/usuario_model.dart';
 import 'package:serviceflow/design/state/technician_provider.dart';
 
 class TechniciansScreen extends StatelessWidget {
@@ -59,7 +58,10 @@ class TechniciansScreen extends StatelessWidget {
                       }
                     },
                   )
-                      : const Card(child: Center(child: Text("Seleccione un técnico para ver sus detalles."))),
+                      : const Card(child: Center(child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Text("Seleccione un técnico para ver sus detalles o añada uno nuevo.", textAlign: TextAlign.center),
+                  ))),
                 ),
               ],
             ),
@@ -69,10 +71,9 @@ class TechniciansScreen extends StatelessWidget {
     );
   }
 
-  void _showTechnicianForm(BuildContext context, TechnicianProvider provider, {Technician? technician}) {
+  void _showTechnicianForm(BuildContext context, TechnicianProvider provider, {Usuario? technician}) {
     showDialog(
       context: context,
-      // CORRECCIÓN: Usamos el 'dialogContext' que provee el builder
       builder: (dialogContext) => AlertDialog(
         title: Text(technician == null ? 'Nuevo Técnico' : 'Editar Técnico'),
         content: _TechnicianForm(
@@ -81,18 +82,7 @@ class TechniciansScreen extends StatelessWidget {
             if (technician == null) {
               provider.addTechnician(newTechData);
             } else {
-              final updatedTech = Technician(
-                id: technician.id,
-                nombre: newTechData.nombre,
-                apellidoPaterno: newTechData.apellidoPaterno,
-                apellidoMaterno: newTechData.apellidoMaterno,
-                correo: newTechData.correo,
-                telefono: newTechData.telefono,
-                especialidad: newTechData.especialidad,
-                habilidades: newTechData.habilidades,
-                serviciosRealizados: technician.serviciosRealizados,
-              );
-              provider.updateTechnician(updatedTech);
+              provider.updateTechnician(newTechData);
             }
             Navigator.of(dialogContext).pop();
           },
@@ -123,9 +113,9 @@ class TechniciansScreen extends StatelessWidget {
 }
 
 class _TechnicianList extends StatelessWidget {
-  final List<Technician> technicians;
-  final Technician? selectedTechnician;
-  final Function(Technician) onSelect;
+  final List<Usuario> technicians;
+  final Usuario? selectedTechnician;
+  final Function(Usuario) onSelect;
   final Function(String) onFilter;
 
   const _TechnicianList(
@@ -139,7 +129,7 @@ class _TechnicianList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child:
-            TextField(onChanged: onFilter, decoration: const InputDecoration(hintText: 'Buscar...', prefixIcon: Icon(Icons.search))),
+            TextField(onChanged: onFilter, decoration: const InputDecoration(hintText: 'Buscar técnico...', prefixIcon: Icon(Icons.search))),
           ),
           const Divider(height: 1),
           Expanded(
@@ -148,8 +138,9 @@ class _TechnicianList extends StatelessWidget {
               itemBuilder: (context, index) {
                 final tech = technicians[index];
                 return ListTile(
+                  leading: CircleAvatar(child: Text(tech.nombres[0])),
                   title: Text(tech.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(tech.especialidad),
+                  subtitle: Text(tech.perfilTecnico?.especialidad ?? 'Sin especialidad'),
                   selected: selectedTechnician?.id == tech.id,
                   selectedTileColor: AppColors.navItemActive,
                   onTap: () => onSelect(tech),
@@ -164,7 +155,7 @@ class _TechnicianList extends StatelessWidget {
 }
 
 class _TechnicianDetails extends StatelessWidget {
-  final Technician technician;
+  final Usuario technician;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -172,6 +163,8 @@ class _TechnicianDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final perfil = technician.perfilTecnico;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -195,26 +188,25 @@ class _TechnicianDetails extends StatelessWidget {
                 ],
               ),
               const Divider(height: 24),
-              _DetailRow(label: 'ID Técnico', value: technician.id),
+              _DetailRow(label: 'ID Usuario', value: technician.id),
               _DetailRow(label: 'Nombre', value: technician.nombreCompleto),
-              _DetailRow(label: 'Correo', value: technician.correo),
+              _DetailRow(label: 'Correo', value: technician.email),
               _DetailRow(label: 'Teléfono', value: technician.telefono),
-              _DetailRow(label: 'Especialidad', value: technician.especialidad),
-              _DetailRow(label: 'Habilidades', value: technician.habilidades.join(', ')),
+              const Divider(height: 32),
+              Text("Perfil Técnico", style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              if(perfil != null) ...[
+                _DetailRow(label: 'Especialidad', value: perfil.especialidad),
+                _DetailRow(label: 'Habilidades', value: perfil.habilidades.map((h) => h.nombre).join(', ')),
+              ] else
+                const Text("Sin perfil técnico definido."),
+
               const Divider(height: 32),
               Text("Servicios Asignados", style: Theme.of(context).textTheme.titleLarge),
-              if (technician.serviciosRealizados.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text("No tiene servicios asignados."),
-                )
-              else
-                ...technician.serviciosRealizados.map((id) => ListTile(
-                  leading: const Icon(Icons.assignment_outlined, color: AppColors.primaryColor),
-                  title: Text("Orden de Servicio #$id"),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => context.go('/order-detail/$id'),
-                )),
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text("Funcionalidad de historial pendiente."),
+              )
             ],
           ),
         ),
@@ -224,8 +216,8 @@ class _TechnicianDetails extends StatelessWidget {
 }
 
 class _TechnicianForm extends StatefulWidget {
-  final Technician? technician;
-  final Function(Technician) onSave;
+  final Usuario? technician;
+  final Function(Usuario) onSave;
 
   const _TechnicianForm({this.technician, required this.onSave});
 
@@ -235,9 +227,8 @@ class _TechnicianForm extends StatefulWidget {
 
 class _TechnicianFormState extends State<_TechnicianForm> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nombreController;
+  late TextEditingController _nombresController;
   late TextEditingController _paternoController;
-  late TextEditingController _maternoController;
   late TextEditingController _correoController;
   late TextEditingController _telefonoController;
   late TextEditingController _especialidadController;
@@ -246,20 +237,18 @@ class _TechnicianFormState extends State<_TechnicianForm> {
   @override
   void initState() {
     super.initState();
-    _nombreController = TextEditingController(text: widget.technician?.nombre ?? '');
+    _nombresController = TextEditingController(text: widget.technician?.nombres ?? '');
     _paternoController = TextEditingController(text: widget.technician?.apellidoPaterno ?? '');
-    _maternoController = TextEditingController(text: widget.technician?.apellidoMaterno ?? '');
-    _correoController = TextEditingController(text: widget.technician?.correo ?? '');
+    _correoController = TextEditingController(text: widget.technician?.email ?? '');
     _telefonoController = TextEditingController(text: widget.technician?.telefono ?? '');
-    _especialidadController = TextEditingController(text: widget.technician?.especialidad ?? '');
-    _habilidadesController = TextEditingController(text: widget.technician?.habilidades.join(', ') ?? '');
+    _especialidadController = TextEditingController(text: widget.technician?.perfilTecnico?.especialidad ?? '');
+    _habilidadesController = TextEditingController(text: widget.technician?.perfilTecnico?.habilidades.map((e) => e.nombre).join(', ') ?? '');
   }
 
   @override
   void dispose() {
-    _nombreController.dispose();
+    _nombresController.dispose();
     _paternoController.dispose();
-    _maternoController.dispose();
     _correoController.dispose();
     _telefonoController.dispose();
     _especialidadController.dispose();
@@ -269,16 +258,24 @@ class _TechnicianFormState extends State<_TechnicianForm> {
 
   void _handleSave() {
     if (_formKey.currentState!.validate()) {
-      final newTechData = Technician(
-        id: widget.technician?.id ?? '',
-        nombre: _nombreController.text,
-        apellidoPaterno: _paternoController.text,
-        apellidoMaterno: _maternoController.text,
-        correo: _correoController.text,
-        telefono: _telefonoController.text,
-        especialidad: _especialidadController.text,
-        habilidades: _habilidadesController.text.split(',').map((e) => e.trim()).toList(),
-        serviciosRealizados: widget.technician?.serviciosRealizados ?? [],
+      final habilidades = _habilidadesController.text
+          .split(',')
+          .where((s) => s.trim().isNotEmpty)
+          .map((nombre) => Habilidad(id: '', nombre: nombre.trim()))
+          .toList();
+
+      final newTechData = Usuario(
+          id: widget.technician?.id ?? '',
+          empresaId: widget.technician?.empresaId ?? 'emp-1',
+          nombres: _nombresController.text,
+          apellidoPaterno: _paternoController.text,
+          email: _correoController.text,
+          telefono: _telefonoController.text,
+          rol: 'Tecnico',
+          perfilTecnico: TecnicoPerfil(
+            especialidad: _especialidadController.text,
+            habilidades: habilidades,
+          )
       );
       widget.onSave(newTechData);
     }
@@ -294,25 +291,23 @@ class _TechnicianFormState extends State<_TechnicianForm> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(controller: _nombreController, decoration: const InputDecoration(labelText: 'Nombre(s)')),
+              TextFormField(controller: _nombresController, decoration: const InputDecoration(labelText: 'Nombre(s)'), validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
               const SizedBox(height: 16),
-              TextFormField(controller: _paternoController, decoration: const InputDecoration(labelText: 'Apellido Paterno')),
+              TextFormField(controller: _paternoController, decoration: const InputDecoration(labelText: 'Apellido Paterno'), validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
               const SizedBox(height: 16),
-              TextFormField(controller: _maternoController, decoration: const InputDecoration(labelText: 'Apellido Materno')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _correoController, decoration: const InputDecoration(labelText: 'Correo')),
+              TextFormField(controller: _correoController, decoration: const InputDecoration(labelText: 'Correo'), validator: (v) => v!.isEmpty || !v.contains('@') ? 'Correo inválido' : null),
               const SizedBox(height: 16),
               TextFormField(controller: _telefonoController, decoration: const InputDecoration(labelText: 'Teléfono')),
-              const SizedBox(height: 16),
+              const Divider(height: 24),
               TextFormField(controller: _especialidadController, decoration: const InputDecoration(labelText: 'Especialidad')),
               const SizedBox(height: 16),
               TextFormField(
                   controller: _habilidadesController,
-                  decoration: const InputDecoration(labelText: 'Habilidades (separadas por coma)')),
+                  decoration: const InputDecoration(labelText: 'Habilidades (separadas por coma)', hintText: 'Instalación, Mantenimiento, ...')),
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
+                child: FilledButton.icon(
                   onPressed: _handleSave,
                   icon: const Icon(Icons.save),
                   label: const Text('Guardar'),

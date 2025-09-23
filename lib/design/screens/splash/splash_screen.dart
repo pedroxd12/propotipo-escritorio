@@ -5,7 +5,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
 
-// Animación de bienvenida mejorada: más sutil y profesional.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -53,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.headerPrimary,
+      backgroundColor: AppColors.backgroundColor,
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
@@ -62,7 +61,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: SvgPicture.asset(
               'assets/images/service_flow_logo.svg',
               width: 180,
-              // colorFilter eliminado para mostrar el logo original
             ),
           ),
         ),

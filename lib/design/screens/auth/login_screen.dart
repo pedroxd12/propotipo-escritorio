@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
 
-// Pantalla de Login rediseñada para ser limpia, centrada y directa.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -18,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() {
     if (_formKey.currentState!.validate()) {
-      // La lógica de autenticación se mantiene, pero la navegación es más robusta.
       context.go('/home');
     }
   }

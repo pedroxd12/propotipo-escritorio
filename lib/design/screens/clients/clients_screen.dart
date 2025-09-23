@@ -1,10 +1,11 @@
 // lib/design/screens/clients/clients_screen.dart
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:serviceflow/data/models/client_model.dart';
 import 'package:serviceflow/design/state/client_provider.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:serviceflow/design/screens/clients/address_form_dialog.dart';
 
 class ClientsScreen extends StatelessWidget {
   const ClientsScreen({super.key});
@@ -23,7 +24,6 @@ class ClientsScreen extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Columna Izquierda: Lista de Clientes y Botón de Añadir
                 Expanded(
                   flex: 2,
                   child: Column(
@@ -49,7 +49,6 @@ class ClientsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 24),
-                // Columna Derecha: Detalles del Cliente Seleccionado
                 Expanded(
                   flex: 3,
                   child: provider.selectedClient != null
@@ -58,7 +57,7 @@ class ClientsScreen extends StatelessWidget {
                     onEdit: () => _showClientForm(context, provider, client: provider.selectedClient),
                     onDelete: () async {
                       final confirm = await _showDeleteConfirmation(context);
-                      if (confirm ?? false) {
+                      if (confirm == true) {
                         provider.deleteClient(provider.selectedClient!.id);
                       }
                     },
@@ -68,7 +67,7 @@ class ClientsScreen extends StatelessWidget {
                       child: Padding(
                         padding: EdgeInsets.all(24.0),
                         child: Text(
-                          "Seleccione un cliente de la lista para ver sus detalles o añada uno nuevo.",
+                          "Seleccione un cliente para ver sus detalles o añada uno nuevo.",
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -83,12 +82,9 @@ class ClientsScreen extends StatelessWidget {
     );
   }
 
-  // Muestra el diálogo con el formulario para añadir o editar un cliente
-  void _showClientForm(BuildContext context, ClientProvider provider, {Client? client}) {
+  void _showClientForm(BuildContext context, ClientProvider provider, {Cliente? client}) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      // CORRECCIÓN: Usamos el 'dialogContext' que provee el builder para el pop
       builder: (dialogContext) => AlertDialog(
         title: Text(client == null ? 'Registrar Nuevo Cliente' : 'Editar Cliente'),
         content: _ClientForm(
@@ -97,28 +93,18 @@ class ClientsScreen extends StatelessWidget {
             if (client == null) {
               provider.addClient(newClientData);
             } else {
-              // Aseguramos que el ID se mantenga al actualizar
-              final updatedClient = Client(
-                id: client.id,
-                nombre: newClientData.nombre,
-                apellidoPaterno: newClientData.apellidoPaterno,
-                apellidoMaterno: newClientData.apellidoMaterno,
-                correo: newClientData.correo,
-                telefono: newClientData.telefono,
-                celular: newClientData.celular,
-                rfc: newClientData.rfc,
-                direcciones: newClientData.direcciones,
-                serviciosRealizados: client.serviciosRealizados,
+              final updatedClient = client.copyWith(
+                nombreCuenta: newClientData.nombreCuenta,
+                telefonoPrincipal: newClientData.telefonoPrincipal,
+                emailFacturacion: newClientData.emailFacturacion,
               );
               provider.updateClient(updatedClient);
             }
-            // Usamos el 'dialogContext' para cerrar el diálogo
             Navigator.of(dialogContext).pop();
           },
         ),
         actions: [
           TextButton(
-            // Usamos el 'dialogContext' para cerrar el diálogo
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancelar'),
           ),
@@ -142,11 +128,10 @@ class ClientsScreen extends StatelessWidget {
   }
 }
 
-// Widget para la lista filtrable de clientes
 class _ClientList extends StatelessWidget {
-  final List<Client> clients;
-  final Client? selectedClient;
-  final Function(Client) onSelect;
+  final List<Cliente> clients;
+  final Cliente? selectedClient;
+  final Function(Cliente) onSelect;
   final Function(String) onFilter;
 
   const _ClientList({required this.clients, this.selectedClient, required this.onSelect, required this.onFilter});
@@ -176,8 +161,8 @@ class _ClientList extends StatelessWidget {
                 final client = clients[index];
                 final isSelected = selectedClient?.id == client.id;
                 return ListTile(
-                  title: Text(client.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text(client.correo),
+                  title: Text(client.nombreCuenta, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(client.emailFacturacion),
                   onTap: () => onSelect(client),
                   selected: isSelected,
                   selectedTileColor: AppColors.navItemActive,
@@ -191,13 +176,33 @@ class _ClientList extends StatelessWidget {
   }
 }
 
-// Widget para mostrar los detalles del cliente seleccionado
 class _ClientDetails extends StatelessWidget {
-  final Client client;
+  final Cliente client;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _ClientDetails({required this.client, required this.onEdit, required this.onDelete});
+
+  Future<void> _launchMap(Direccion address) async {
+    final Uri googleMapsUrl = Uri.parse('http://googleusercontent.com/maps.google.com/7{address.latitud},${address.longitud}');
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl);
+    } else {
+      throw 'No se pudo abrir el mapa para ${address.latitud},${address.longitud}';
+    }
+  }
+
+  void _showAddAddressForm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return ChangeNotifierProvider.value(
+          value: context.read<ClientProvider>(),
+          child: AddressFormDialog(clientId: client.id),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,13 +230,21 @@ class _ClientDetails extends StatelessWidget {
               ),
               const Divider(height: 24),
               _DetailRow(label: 'ID Cliente', value: client.id),
-              _DetailRow(label: 'Nombre Completo', value: client.nombreCompleto),
-              _DetailRow(label: 'Correo Electrónico', value: client.correo),
-              _DetailRow(label: 'Teléfono Fijo', value: client.telefono),
-              _DetailRow(label: 'Teléfono Celular', value: client.celular),
-              _DetailRow(label: 'RFC', value: client.rfc),
+              _DetailRow(label: 'Nombre de Cuenta', value: client.nombreCuenta),
+              _DetailRow(label: 'Correo de Facturación', value: client.emailFacturacion),
+              _DetailRow(label: 'Teléfono Principal', value: client.telefonoPrincipal),
               const Divider(height: 32),
-              Text("Direcciones", style: Theme.of(context).textTheme.titleLarge),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Direcciones", style: Theme.of(context).textTheme.titleLarge),
+                  IconButton(
+                    onPressed: () => _showAddAddressForm(context),
+                    icon: const Icon(Icons.add_location_alt_outlined),
+                    tooltip: "Añadir Dirección",
+                  )
+                ],
+              ),
               const SizedBox(height: 8),
               if (client.direcciones.isEmpty)
                 const Text("No hay direcciones registradas.")
@@ -239,23 +252,22 @@ class _ClientDetails extends StatelessWidget {
                 ...client.direcciones.map((addr) => Card(
                   elevation: 0,
                   color: AppColors.surfaceVariant,
+                  margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: const Icon(Icons.location_on_outlined, color: AppColors.primaryColor),
-                    title: Text(addr.toString()),
+                    title: Text(addr.calleYNumero),
+                    subtitle: Text(addr.toString()),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.map_outlined),
+                      onPressed: () => _launchMap(addr),
+                      tooltip: "Ver en mapa",
+                    ),
                   ),
                 )),
               const Divider(height: 32),
               Text("Historial de Servicios", style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
-              if (client.serviciosRealizados.isEmpty)
-                const Text("No hay servicios en el historial.")
-              else
-                ...client.serviciosRealizados.map((id) => ListTile(
-                  leading: const Icon(Icons.receipt_long_outlined, color: AppColors.primaryColor),
-                  title: Text("Orden de Servicio #$id"),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => context.go('/order-detail/$id'),
-                )),
+              const Text("No hay servicios en el historial (funcionalidad pendiente).")
             ],
           ),
         ),
@@ -264,10 +276,9 @@ class _ClientDetails extends StatelessWidget {
   }
 }
 
-// Widget para el formulario de cliente
 class _ClientForm extends StatefulWidget {
-  final Client? client;
-  final Function(Client) onSave;
+  final Cliente? client;
+  final Function(Cliente) onSave;
 
   const _ClientForm({this.client, required this.onSave});
 
@@ -277,61 +288,35 @@ class _ClientForm extends StatefulWidget {
 
 class _ClientFormState extends State<_ClientForm> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nombreController;
-  late TextEditingController _paternoController;
-  late TextEditingController _maternoController;
-  late TextEditingController _correoController;
+  late TextEditingController _nombreCuentaController;
+  late TextEditingController _emailController;
   late TextEditingController _telefonoController;
-  late TextEditingController _celularController;
-  late TextEditingController _rfcController;
-  // Para la dirección, en una app real sería más complejo
-  late TextEditingController _calleController;
-  late TextEditingController _coloniaController;
 
   @override
   void initState() {
     super.initState();
-    _nombreController = TextEditingController(text: widget.client?.nombre ?? '');
-    _paternoController = TextEditingController(text: widget.client?.apellidoPaterno ?? '');
-    _maternoController = TextEditingController(text: widget.client?.apellidoMaterno ?? '');
-    _correoController = TextEditingController(text: widget.client?.correo ?? '');
-    _telefonoController = TextEditingController(text: widget.client?.telefono ?? '');
-    _celularController = TextEditingController(text: widget.client?.celular ?? '');
-    _rfcController = TextEditingController(text: widget.client?.rfc ?? '');
-    // Simplificado para un solo domicilio
-    _calleController = TextEditingController(text: widget.client?.direcciones.firstOrNull?.calle ?? '');
-    _coloniaController = TextEditingController(text: widget.client?.direcciones.firstOrNull?.colonia ?? '');
+    _nombreCuentaController = TextEditingController(text: widget.client?.nombreCuenta ?? '');
+    _emailController = TextEditingController(text: widget.client?.emailFacturacion ?? '');
+    _telefonoController = TextEditingController(text: widget.client?.telefonoPrincipal ?? '');
   }
 
   @override
   void dispose() {
-    _nombreController.dispose();
-    _paternoController.dispose();
-    _maternoController.dispose();
-    _correoController.dispose();
+    _nombreCuentaController.dispose();
+    _emailController.dispose();
     _telefonoController.dispose();
-    _celularController.dispose();
-    _rfcController.dispose();
-    _calleController.dispose();
-    _coloniaController.dispose();
     super.dispose();
   }
 
   void _handleSave() {
     if (_formKey.currentState!.validate()) {
-      final newClientData = Client(
-        id: widget.client?.id ?? '', // ID se genera en el provider si es nuevo
-        nombre: _nombreController.text,
-        apellidoPaterno: _paternoController.text,
-        apellidoMaterno: _maternoController.text,
-        correo: _correoController.text,
-        telefono: _telefonoController.text,
-        celular: _celularController.text,
-        rfc: _rfcController.text,
-        direcciones: [
-          ClientAddress(calle: _calleController.text, numExt: '0', colonia: _coloniaController.text, codigoPostal: '00000')
-        ],
-        serviciosRealizados: widget.client?.serviciosRealizados ?? [],
+      final newClientData = Cliente(
+        id: widget.client?.id ?? '',
+        empresaId: widget.client?.empresaId ?? 'emp-1',
+        nombreCuenta: _nombreCuentaController.text,
+        emailFacturacion: _emailController.text,
+        telefonoPrincipal: _telefonoController.text,
+        direcciones: widget.client?.direcciones ?? [],
       );
       widget.onSave(newClientData);
     }
@@ -342,28 +327,17 @@ class _ClientFormState extends State<_ClientForm> {
     return Form(
       key: _formKey,
       child: SizedBox(
-        width: 500, // Ancho fijo para el diálogo
+        width: 500,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(controller: _nombreController, decoration: const InputDecoration(labelText: 'Nombre(s)')),
+              TextFormField(controller: _nombreCuentaController, decoration: const InputDecoration(labelText: 'Nombre de la cuenta o Empresa'), validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
               const SizedBox(height: 16),
-              TextFormField(controller: _paternoController, decoration: const InputDecoration(labelText: 'Apellido Paterno')),
+              TextFormField(controller: _emailController, decoration: const InputDecoration(labelText: 'Correo de Facturación'), validator: (v) => v!.isEmpty || !v.contains('@') ? 'Correo inválido' : null),
               const SizedBox(height: 16),
-              TextFormField(controller: _maternoController, decoration: const InputDecoration(labelText: 'Apellido Materno')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _correoController, decoration: const InputDecoration(labelText: 'Correo')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _telefonoController, decoration: const InputDecoration(labelText: 'Teléfono')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _celularController, decoration: const InputDecoration(labelText: 'Celular')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _rfcController, decoration: const InputDecoration(labelText: 'RFC')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _calleController, decoration: const InputDecoration(labelText: 'Calle y Número')),
-              const SizedBox(height: 16),
-              TextFormField(controller: _coloniaController, decoration: const InputDecoration(labelText: 'Colonia')),
+              TextFormField(controller: _telefonoController, decoration: const InputDecoration(labelText: 'Teléfono Principal')),
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerRight,
@@ -393,7 +367,7 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 140, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
+          SizedBox(width: 150, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
           Expanded(child: Text(value.isNotEmpty ? value : "N/A")),
         ],
       ),

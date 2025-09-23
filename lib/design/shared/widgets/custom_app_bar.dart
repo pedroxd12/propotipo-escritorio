@@ -10,7 +10,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    String userName = "Admin"; // Esto debería venir del estado de autenticación
+    String userName = "Admin";
 
     return AppBar(
       backgroundColor: AppColors.headerPrimary,

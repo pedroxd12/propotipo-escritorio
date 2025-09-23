@@ -40,8 +40,8 @@ class AppColors {
   static const Color eventRed = Color(0xFFDC2626);
 
   // Header moderno con gradiente sutil
-  static const Color headerPrimary = Color(0xFF1E293B); // Azul gris oscuro
-  static const Color headerSecondary = Color(0xFF334155); // Para gradientes
+  static const Color headerPrimary = Color(0xFF0D47A1);
+  static const Color headerSecondary = Color(0xFF1565C0); // Para gradientes
 
   // Sidebar y navegación
   static const Color sidebarBackground = Color(0xFFFAFBFC);
