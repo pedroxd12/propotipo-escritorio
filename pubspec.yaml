@@ -17,7 +17,7 @@ dependencies:
   flutter_localizations: # <--- AGREGA ESTA LÍNEA
     sdk: flutter
   cupertino_icons: ^1.0.2
-  intl: 0.19.0 # Para formateo de fechas y horas
+  intl: 0.20.2 # Para formateo de fechas y horas
   flutter_svg: ^2.0.9 # Si tu logo fuera SVG, si es PNG no es necesario para el logo.
   # Para animaciones más avanzadas, puedes considerar:
   # animations: ^2.0.8
