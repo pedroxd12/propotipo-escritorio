@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:serviceflow/core/routes/app_router.dart';
 import 'package:serviceflow/core/theme/app_theme.dart';
+import 'package:serviceflow/design/state/chat_provider.dart';
 import 'package:serviceflow/design/state/technician_provider.dart';
 import 'package:serviceflow/design/state/client_provider.dart';
 import 'package:serviceflow/design/state/service_order_provider.dart';
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TechnicianProvider()),
         ChangeNotifierProvider(create: (_) => ClientProvider()),
         ChangeNotifierProvider(create: (_) => ServiceOrderProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp.router(
         title: 'ServiceFlow',

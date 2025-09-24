@@ -2,15 +2,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:serviceflow/data/models/agenda_event.dart'; // Importar el modelo
+import 'package:serviceflow/design/screens/auth/forgot_password_screen.dart';
 import 'package:serviceflow/design/screens/auth/login_screen.dart';
+import 'package:serviceflow/design/screens/auth/welcome_screen.dart';
 import 'package:serviceflow/design/screens/clients/clients_screen.dart';
 import 'package:serviceflow/design/screens/home/home_screen.dart';
+import 'package:serviceflow/design/screens/messages/messages_screen.dart';
 import 'package:serviceflow/design/screens/orden_detail/order_detail_screen.dart';
 import 'package:serviceflow/design/screens/service_orders/service_orders_screen.dart';
 import 'package:serviceflow/design/screens/splash/splash_screen.dart';
 import 'package:serviceflow/design/screens/tecnicos/tecnicos_screen.dart';
 import 'package:serviceflow/design/screens/usuarios/usuarios_screen.dart';
 import 'package:serviceflow/design/shared/widgets/app_shell.dart';
+// --- NUEVA IMPORTACIÓN ---
+import 'package:serviceflow/design/screens/settings/settings_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -25,8 +30,17 @@ class AppRouter {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -54,18 +68,23 @@ class AppRouter {
             path: '/users',
             builder: (context, state) => const UsersScreen(),
           ),
+          GoRoute(
+            path: '/messages',
+            builder: (context, state) => const MessagesScreen(),
+          ),
+          // --- NUEVA RUTA AÑADIDA ---
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const SettingsScreen(),
+          ),
         ],
       ),
-      // --- CORRECCIÓN CLAVE 4: MODIFICAR LA RUTA DE DETALLE ---
       GoRoute(
         path: '/order-detail/:orderId',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) {
           final orderId = state.pathParameters['orderId']!;
-          // Recibimos el objeto 'AgendaEvent' que pasamos como 'extra'
           final event = state.extra as AgendaEvent?;
-
-          // Pasamos ambos datos a la pantalla de detalle
           return OrderDetailScreen(orderId: orderId, event: event);
         },
       ),

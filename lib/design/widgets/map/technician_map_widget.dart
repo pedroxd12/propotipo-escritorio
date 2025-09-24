@@ -40,7 +40,6 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
   // Variables para comparar cambios
   String _lastOrdersHash = '';
   String _lastTechniciansHash = '';
-  bool _hasDataChanged = false;
 
   @override
   void initState() {
@@ -52,7 +51,6 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
   @override
   void dispose() {
     _controller?.dispose();
-    _controller = null;
     super.dispose();
   }
 
@@ -104,9 +102,17 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
 
       _controller = WebviewController();
       await _controller!.initialize();
-      _isInitialized = true;
 
-      await _loadMapContent();
+      _controller!.url.listen((url) {
+        // Puedes manejar eventos de URL aquí si es necesario
+      });
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+        await _loadMapContent();
+      }
 
     } catch (e) {
       debugPrint('Error inicializando el mapa: $e');
@@ -120,7 +126,7 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
   }
 
   Future<void> _loadMapContent() async {
-    if (_controller == null || !_isInitialized || !mounted) return;
+    if (_controller == null || !_isInitialized || !mounted || !_controller!.value.isInitialized) return;
 
     try {
       final markers = <Map<String, dynamic>>[];
@@ -151,11 +157,6 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
 
       // Convertir marcadores a JSON válido
       final markersJson = jsonEncode(markers);
-      final markersJsonEscaped = markersJson
-          .replaceAll('\\', '\\\\')
-          .replaceAll('"', '\\"')
-          .replaceAll('\n', '\\n')
-          .replaceAll('\r', '\\r');
 
       final htmlContent = """
         <!DOCTYPE html>
@@ -201,7 +202,7 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
             let map;
             let markers = [];
             
-            function updateMap() {
+            function updateMap(markersData) {
               // Limpiar marcadores existentes
               markers.forEach(function(m) {
                 if (m.marker) m.marker.setMap(null);
@@ -210,7 +211,6 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
               markers = [];
               
               try {
-                const markersData = JSON.parse("$markersJsonEscaped");
                 console.log('Actualizando mapa con', markersData.length, 'marcadores');
                 
                 // Agregar nuevos marcadores
@@ -257,10 +257,6 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
                 // Ajustar vista solo si hay marcadores
                 if (hasValidMarkers && markersData.length > 1) {
                   map.fitBounds(bounds);
-                  const listener = google.maps.event.addListener(map, 'idle', function() {
-                    if (map.getZoom() > 16) map.setZoom(16);
-                    google.maps.event.removeListener(listener);
-                  });
                 } else if (hasValidMarkers && markersData.length === 1) {
                   map.setCenter(bounds.getCenter());
                   map.setZoom(15);
@@ -291,11 +287,10 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
                 
                 map = new google.maps.Map(document.getElementById('map'), mapOptions);
                 
-                // Cargar marcadores iniciales
-                updateMap();
-                
                 console.log('Mapa inicializado correctamente');
-                
+                // Informa a Flutter que el mapa está listo para recibir marcadores.
+                window.chrome.webview.postMessage('map_initialized');
+
               } catch (error) {
                 console.error('Error al inicializar el mapa:', error);
                 const loadingEl = document.getElementById('loading');
@@ -320,9 +315,6 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
                 loadingEl.innerHTML = '<div class="error-message">Error de autenticación de Google Maps. Verifique su clave de API.</div>';
               }
             };
-            
-            // Función global para actualizar desde Flutter
-            window.updateMapMarkers = updateMap;
           </script>
           
           <script async defer 
@@ -332,7 +324,11 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
         </body>
         </html>
       """;
-
+      _controller!.webMessage.listen((message) {
+        if (message == 'map_initialized') {
+          _updateMapMarkers(markersJson);
+        }
+      });
       await _controller!.loadStringContent(htmlContent);
 
       // Actualizar los hashes después de cargar
@@ -356,12 +352,14 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
     }
   }
 
-  Future<void> _updateMapMarkers() async {
-    if (_controller == null || !_isInitialized || !mounted) return;
+  Future<void> _updateMapMarkers(String markersJson) async {
+    if (_controller == null || !_isInitialized || !mounted || !_controller!.value.isInitialized) return;
 
     try {
+      // Escapar comillas y saltos de línea para la inyección de JS
+      final markersJsonEscaped = jsonEncode(jsonDecode(markersJson));
       // Ejecutar JavaScript para actualizar solo los marcadores
-      await _controller!.executeScript('if (typeof updateMapMarkers === "function") { updateMapMarkers(); }');
+      await _controller!.executeScript('if (typeof updateMap === "function") { updateMap($markersJsonEscaped); }');
       _updateDataHashes();
     } catch (e) {
       debugPrint('Error actualizando marcadores: $e');
@@ -379,7 +377,7 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
       _isInitialized = false;
     });
 
-    _controller?.dispose();
+    await _controller?.dispose();
     _controller = null;
 
     await _initializeMap();
@@ -393,9 +391,25 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
     if (_checkDataChanged()) {
       debugPrint('Datos del mapa cambiaron, actualizando...');
 
-      if (_isInitialized && _controller != null && !_isLoading) {
-        // Solo actualizar marcadores en lugar de recargar todo
-        _updateMapMarkers();
+      if (_isInitialized && _controller != null && !_isLoading && _controller!.value.isInitialized) {
+        final markers = <Map<String, dynamic>>[];
+        for (var order in widget.orders) {
+          markers.add({
+            'lat': order.ordenOriginal.direccion.latitud,
+            'lng': order.ordenOriginal.direccion.longitud,
+            'title': '${order.title} (${order.client})',
+            'type': 'service'
+          });
+        }
+        widget.technicianLocations.forEach((id, coords) {
+          markers.add({
+            'lat': coords[0],
+            'lng': coords[1],
+            'title': 'Técnico #${id.split('-').last}',
+            'type': 'technician'
+          });
+        });
+        _updateMapMarkers(jsonEncode(markers));
       } else if (!_isInitialized) {
         // Si no está inicializado, inicializar
         _initializeMap();
@@ -414,29 +428,21 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
         borderRadius: BorderRadius.circular(20),
       ),
       clipBehavior: Clip.antiAlias,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final headerHeight = 80.0;
-          final availableHeight = constraints.maxHeight - headerHeight;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header - Componente separado para evitar reconstrucciones
-              _MapHeader(
-                orders: widget.orders,
-                technicianLocations: widget.technicianLocations,
-                isExpanded: widget.isExpanded,
-                onExpand: widget.onExpand,
-              ),
-              // Contenido del mapa con altura fija
-              SizedBox(
-                height: availableHeight > 0 ? availableHeight : 300,
-                child: _buildMapContent(),
-              ),
-            ],
-          );
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header - Componente separado para evitar reconstrucciones
+          _MapHeader(
+            orders: widget.orders,
+            technicianLocations: widget.technicianLocations,
+            isExpanded: widget.isExpanded,
+            onExpand: widget.onExpand,
+          ),
+          // Contenido del mapa expandido para llenar el espacio restante
+          Expanded(
+            child: _buildMapContent(),
+          ),
+        ],
       ),
     );
   }
@@ -453,10 +459,11 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
       );
     }
 
-    if (_controller?.value.isInitialized == true) {
+    if (_controller != null && _controller!.value.isInitialized) {
       return Webview(_controller!);
     }
 
+    // Agregamos un estado intermedio por si el controlador es nulo o no se inicializó
     return const _EmptyMapWidget();
   }
 }
@@ -478,7 +485,6 @@ class _MapHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80.0,
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
@@ -531,7 +537,6 @@ class _LoadingWidget extends StatelessWidget {
     return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
         children: [
           CircularProgressIndicator(),
           SizedBox(height: 16),
@@ -542,7 +547,7 @@ class _LoadingWidget extends StatelessWidget {
   }
 }
 
-// Widget separado para errores
+// Widget separado para errores (envuelto en SingleChildScrollView)
 class _ErrorWidget extends StatelessWidget {
   final String errorMessage;
   final VoidCallback onRetry;
@@ -555,58 +560,63 @@ class _ErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: AppColors.errorColor,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              errorMessage,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.errorColor),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Reintentar'),
-            ),
-          ],
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                color: AppColors.errorColor,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.errorColor),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: onRetry,
+                child: const Text('Reintentar'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// Widget separado para estado vacío
+// Widget separado para estado vacío (envuelto en SingleChildScrollView)
 class _EmptyMapWidget extends StatelessWidget {
   const _EmptyMapWidget();
 
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.map_outlined,
-            color: Colors.grey,
-            size: 48,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.map_outlined,
+                color: Colors.grey,
+                size: 48,
+              ),
+              SizedBox(height: 16),
+              Text(
+                "Inicializando mapa...",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
           ),
-          SizedBox(height: 16),
-          Text(
-            "No se pudo inicializar el mapa.\nVerifique la clave de API y la conexión a internet.",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+        ),
       ),
     );
   }

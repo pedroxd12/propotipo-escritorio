@@ -24,6 +24,19 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // --- MODIFICACIÓN AQUÍ ---
+      // Se añade una AppBar para el botón de regreso
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.textSecondaryColor),
+          // Navega de vuelta a la pantalla de bienvenida
+          onPressed: () => context.go('/welcome'),
+          tooltip: 'Volver a la bienvenida',
+        ),
+      ),
+      // --- FIN DE LA MODIFICACIÓN ---
       backgroundColor: AppColors.backgroundColor,
       body: Center(
         child: SingleChildScrollView(
@@ -44,11 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       SvgPicture.asset(
                         'assets/images/service_flow_logo.svg',
                         height: 60,
-                        // colorFilter eliminado para mostrar el logo original
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Bienvenido a ServiceFlow',
+                        'Bienvenido de Vuelta',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
@@ -66,7 +78,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
-                          if (value == null || value.isEmpty || !value.contains('@')) {
+                          if (value == null ||
+                              value.isEmpty ||
+                              !value.contains('@')) {
                             return 'Por favor, ingrese un correo válido';
                           }
                           return null;
@@ -80,10 +94,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              _obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
                             ),
                             onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
+                              setState(
+                                      () => _obscurePassword = !_obscurePassword);
                             },
                           ),
                         ),
@@ -102,9 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       TextButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Funcionalidad de recuperación no implementada.')),
-                          );
+                          context.push('/forgot-password');
                         },
                         child: const Text('¿Olvidaste tu contraseña?'),
                       ),
