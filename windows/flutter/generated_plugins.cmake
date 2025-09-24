@@ -3,8 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  screen_retriever
+  screen_retriever_windows
   url_launcher_windows
+  webview_windows
   window_manager
 )
 

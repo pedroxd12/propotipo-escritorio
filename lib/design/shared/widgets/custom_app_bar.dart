@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
+import 'package:serviceflow/design/widgets/notification/notification_panel_widget.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String currentRoute;
@@ -67,9 +68,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               margin: const EdgeInsets.symmetric(horizontal: 20),
             ),
 
-            // --- CORRECCIÓN AQUÍ ---
-            // Usamos Expanded para que ocupe el espacio disponible
-            // y quitamos el Spacer que estaba después.
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -90,13 +88,29 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
 
-            // const Spacer(), // <-- SE ELIMINA ESTA LÍNEA
-
-            // Perfil de Usuario
+            // Perfil de Usuario y Notificaciones
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: Colors.white70),
+                    tooltip: "Notificaciones",
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const Dialog(
+                          alignment: Alignment.topRight,
+                          child: SizedBox(
+                            width: 400,
+                            height: 600,
+                            child: NotificationPanel(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(

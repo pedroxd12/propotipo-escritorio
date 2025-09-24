@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'; // Asegúrate que esta importación esté
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:serviceflow/core/routes/app_router.dart';
@@ -10,9 +11,11 @@ import 'package:serviceflow/design/state/client_provider.dart';
 import 'package:serviceflow/design/state/service_order_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
+
+  await dotenv.load(fileName: ".env");
 
   await windowManager.ensureInitialized();
 
@@ -40,7 +43,6 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => TechnicianProvider()),
         ChangeNotifierProvider(create: (_) => ClientProvider()),
-        // --- CORRECCIÓN 2: AÑADIR EL PROVIDER A LA LISTA ---
         ChangeNotifierProvider(create: (_) => ServiceOrderProvider()),
       ],
       child: MaterialApp.router(
@@ -48,8 +50,9 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
+          // --- CORRECCIÓN AQUÍ ---
+          GlobalMaterialLocalizations.delegate, // Nombre correcto
+          GlobalWidgetsLocalizations.delegate,  // Nombre correcto
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: const [

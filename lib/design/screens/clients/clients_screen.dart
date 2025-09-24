@@ -184,7 +184,7 @@ class _ClientDetails extends StatelessWidget {
   const _ClientDetails({required this.client, required this.onEdit, required this.onDelete});
 
   Future<void> _launchMap(Direccion address) async {
-    final Uri googleMapsUrl = Uri.parse('http://googleusercontent.com/maps.google.com/7{address.latitud},${address.longitud}');
+    final Uri googleMapsUrl = Uri.parse('http://maps.google.com/maps?q=${address.latitud},${address.longitud}');
     if (await canLaunchUrl(googleMapsUrl)) {
       await launchUrl(googleMapsUrl);
     } else {
