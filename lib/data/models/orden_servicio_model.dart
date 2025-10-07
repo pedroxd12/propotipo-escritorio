@@ -5,8 +5,8 @@ import 'package:serviceflow/data/models/usuario_model.dart';
 enum OrdenStatus {
   solicitada,
   agendada,
-  en_camino,
-  en_proceso,
+  enCamino,
+  enProceso,
   finalizada,
   cancelada
 }

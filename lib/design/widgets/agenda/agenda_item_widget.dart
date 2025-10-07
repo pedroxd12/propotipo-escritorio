@@ -50,7 +50,7 @@ class _AgendaItemWidgetState extends State<AgendaItemWidget>
     final itemHeight = (widget.event.duration.inMinutes / 60.0) * widget.hourRowHeight;
     final finalHeight = itemHeight < 45.0 ? 45.0 : itemHeight;
     final eventColor = widget.event.color;
-    final backgroundColor = eventColor.withOpacity(0.9);
+    final backgroundColor = eventColor.withValues(alpha: 0.9);
 
     return MouseRegion(
       onEnter: (_) {
@@ -69,7 +69,7 @@ class _AgendaItemWidgetState extends State<AgendaItemWidget>
             onTap: widget.onTap,
             child: Card(
               elevation: _isHovered ? 8 : 4,
-              shadowColor: eventColor.withOpacity(0.3),
+              shadowColor: eventColor.withValues(alpha: 0.3),
               margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               child: Container(
@@ -110,7 +110,7 @@ class _AgendaItemWidgetState extends State<AgendaItemWidget>
                           Text(
                             '${timeFormat.format(widget.event.startTime)} - ${timeFormat.format(widget.event.endTime)}',
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.9), fontSize: 11),
+                                color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
                           ),
                         ],
                       ),

@@ -1,5 +1,4 @@
 // lib/design/widgets/agenda/event_layout_helper.dart
-import 'dart:math';
 import 'package:serviceflow/data/models/agenda_event.dart';
 
 class EventLayoutParams {

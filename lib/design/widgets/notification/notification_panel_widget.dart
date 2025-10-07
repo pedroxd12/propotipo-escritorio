@@ -51,7 +51,7 @@ class NotificationPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryColor.withOpacity(0.05),
+        color: AppColors.primaryColor.withValues(alpha: 0.05),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
@@ -172,9 +172,9 @@ class NotificationPanel extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             color: notification.isRead
                 ? Colors.transparent
-                : AppColors.primaryColor.withOpacity(0.02),
+                : AppColors.primaryColor.withValues(alpha: 0.02),
             border: notification.priority == NotificationPriority.critical
-                ? Border.all(color: AppColors.errorColor.withOpacity(0.2), width: 1)
+                ? Border.all(color: AppColors.errorColor.withValues(alpha: 0.2), width: 1)
                 : null,
           ),
           child: Row(
@@ -183,7 +183,7 @@ class NotificationPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: notification.color.withOpacity(0.1),
+                  color: notification.color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(

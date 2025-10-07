@@ -35,13 +35,31 @@ class MessagesScreen extends StatelessWidget {
                 const SizedBox(width: 24),
                 Expanded(
                   flex: 4,
-                  child: provider.selectedConversation != null
-                      ? _ChatView(conversation: provider.selectedConversation!)
-                      : const Card(
-                    child: Center(
-                      child: Text("Selecciona una conversación para empezar a chatear."),
+                  // >>> MEJORA DE FLUIDEZ: AnimatedSwitcher para el panel de chat
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.99, end: 1.0).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: provider.selectedConversation != null
+                        ? _ChatView(
+                      key: ValueKey(provider.selectedConversation!.id), // Clave para la animación
+                      conversation: provider.selectedConversation!,
+                    )
+                        : const Card(
+                      key: ValueKey('empty_chat'), // Clave para el estado vacío
+                      child: Center(
+                        child: Text("Selecciona una conversación para empezar a chatear."),
+                      ),
                     ),
                   ),
+                  // <<< FIN DE MEJORA
                 ),
               ],
             ),
@@ -132,11 +150,11 @@ class _ConversationList extends StatelessWidget {
 
 class _ChatView extends StatelessWidget {
   final ChatConversation conversation;
-  const _ChatView({required this.conversation});
+  const _ChatView({required this.conversation, required ValueKey<String> key});
 
   @override
   Widget build(BuildContext context) {
-    final TextEditingController _messageController = TextEditingController();
+    final messageController = TextEditingController();
 
     return Card(
       child: Column(
@@ -184,10 +202,12 @@ class _ChatView extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _messageController,
+                    controller: messageController,
                     decoration: const InputDecoration(
                       hintText: 'Escribe un mensaje...',
                       border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      fillColor: Colors.transparent, // Asegura que no tenga fondo extra
                     ),
                   ),
                 ),
@@ -219,9 +239,15 @@ class _MessageBubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.5), // Limitamos el ancho para mejor lectura
         decoration: BoxDecoration(
           color: isMe ? AppColors.primaryColor : AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(isMe ? 20 : 4),
+            topRight: Radius.circular(isMe ? 4 : 20),
+            bottomLeft: const Radius.circular(20),
+            bottomRight: const Radius.circular(20),
+          ),
         ),
         child: Column(
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,

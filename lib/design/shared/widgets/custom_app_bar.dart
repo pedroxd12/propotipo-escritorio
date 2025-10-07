@@ -23,7 +23,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           automaticallyImplyLeading: false,
           titleSpacing: 0,
           elevation: 4,
-          shadowColor: Colors.black.withOpacity(0.2),
+          shadowColor: Colors.black.withValues(alpha: 0.2),
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -44,7 +44,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: SvgPicture.asset(
@@ -68,7 +68,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               Container(
                 height: 30,
                 width: 1,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 margin: const EdgeInsets.symmetric(horizontal: 20),
               ),
               // Navegación principal (ocupa el espacio restante)
@@ -136,11 +136,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: InkWell(
             onTap: () => context.go('/settings'),
             borderRadius: BorderRadius.circular(25),
-            hoverColor: Colors.white.withOpacity(0.1),
+            hoverColor: Colors.white.withValues(alpha: 0.1),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Row(
@@ -161,7 +161,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   const SizedBox(width: 4),
                   Icon(
                     Icons.arrow_drop_down,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ],
               ),
@@ -237,11 +237,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       child: InkWell(
         onTap: () => context.go(route),
         borderRadius: BorderRadius.circular(8),
-        hoverColor: Colors.white.withOpacity(0.1),
+        hoverColor: Colors.white.withValues(alpha: 0.1),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: isActive ? AppColors.primaryColor.withOpacity(0.5) : Colors.transparent,
+            color: isActive ? AppColors.primaryColor.withValues(alpha: 0.5) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(

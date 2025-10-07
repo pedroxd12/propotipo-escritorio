@@ -42,12 +42,21 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializar controladores con datos de la orden si se está editando
     _folioController = TextEditingController(text: widget.order?.folio ?? '');
     _detallesController = TextEditingController(text: widget.order?.detallesSolicitud ?? '');
     _servicioNombreController = TextEditingController(text: widget.order?.servicio.nombre ?? '');
     _servicioCostoController = TextEditingController(text: widget.order?.servicio.costoBase.toString() ?? '');
-    // ... inicializar el resto de los campos si es necesario
+
+    if (widget.order != null) {
+      final order = widget.order!;
+      _selectedClient = order.cliente;
+      _selectedAddress = order.direccion;
+      _selectedTechnicians = List.from(order.tecnicosAsignados);
+      _fechaAgendadaInicio = order.fechaAgendadaInicio;
+      _horaAgendadaInicio = TimeOfDay.fromDateTime(order.fechaAgendadaInicio);
+      _fechaAgendadaFin = order.fechaAgendadaFin;
+      _horaAgendadaFin = TimeOfDay.fromDateTime(order.fechaAgendadaFin);
+    }
   }
 
   @override
@@ -68,11 +77,15 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     );
     if (pickedDate == null) return;
 
+    if (!context.mounted) return;
+
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: isStart ? _horaAgendadaInicio : _horaAgendadaFin,
     );
     if (pickedTime == null) return;
+
+    if (!context.mounted) return;
 
     setState(() {
       if (isStart) {
@@ -88,9 +101,14 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   void _saveForm() {
     if (_formKey.currentState!.validate()) {
       if (_selectedClient == null || _selectedAddress == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, seleccione un cliente y una dirección.'), backgroundColor: AppColors.errorColor),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Por favor, seleccione un cliente y una dirección.'),
+                backgroundColor: AppColors.errorColor),
+          );
+        }
         return;
       }
 
@@ -148,7 +166,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<Cliente>(
-                  value: _selectedClient,
+                  initialValue: _selectedClient,
                   hint: const Text('Seleccionar Cliente'),
                   items: clientProvider.filteredClients.map((client) {
                     return DropdownMenuItem(
@@ -167,7 +185,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 if (_selectedClient != null) ...[
                   const SizedBox(height: 16),
                   DropdownButtonFormField<Direccion>(
-                    value: _selectedAddress,
+                    initialValue: _selectedAddress,
                     hint: const Text('Seleccionar Dirección'),
                     items: _selectedClient!.direcciones.map((address) {
                       return DropdownMenuItem(
@@ -239,6 +257,7 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
                 // Un Dropdown para selección múltiple sería más complejo.
                 // Usaremos uno simple para asignar el técnico principal por ahora.
                 DropdownButtonFormField<Usuario>(
+                    initialValue: _selectedTechnicians.isNotEmpty ? _selectedTechnicians.first : null,
                     hint: const Text('Asignar técnico principal'),
                     items: technicianProvider.filteredTechnicians.map((tech) {
                       return DropdownMenuItem(value: tech, child: Text(tech.nombreCompleto));

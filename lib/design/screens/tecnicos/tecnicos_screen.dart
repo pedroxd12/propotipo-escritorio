@@ -47,21 +47,39 @@ class TechniciansScreen extends StatelessWidget {
                 const SizedBox(width: 24),
                 Expanded(
                   flex: 3,
-                  child: provider.selectedTechnician != null
-                      ? _TechnicianDetails(
-                    technician: provider.selectedTechnician!,
-                    onEdit: () => _showTechnicianForm(context, provider, technician: provider.selectedTechnician),
-                    onDelete: () async {
-                      final confirm = await _showDeleteConfirmation(context);
-                      if (confirm ?? false) {
-                        provider.deleteTechnician(provider.selectedTechnician!.id);
-                      }
+                  // >>> MEJORA DE FLUIDEZ: AnimatedSwitcher para el panel de detalles
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
+                          child: child,
+                        ),
+                      );
                     },
-                  )
-                      : const Card(child: Center(child: Padding(
-                    padding: EdgeInsets.all(24.0),
-                    child: Text("Seleccione un técnico para ver sus detalles o añada uno nuevo.", textAlign: TextAlign.center),
-                  ))),
+                    child: provider.selectedTechnician != null
+                        ? _TechnicianDetails(
+                      key: ValueKey(provider.selectedTechnician!.id), // Clave para la animación
+                      technician: provider.selectedTechnician!,
+                      onEdit: () => _showTechnicianForm(context, provider, technician: provider.selectedTechnician),
+                      onDelete: () async {
+                        final confirm = await _showDeleteConfirmation(context);
+                        if (confirm ?? false) {
+                          provider.deleteTechnician(provider.selectedTechnician!.id);
+                        }
+                      },
+                    )
+                        : const Card(
+                      key: ValueKey('empty_details'), // Clave para el estado vacío
+                      child: Center(child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Text("Seleccione un técnico para ver sus detalles o añada uno nuevo.", textAlign: TextAlign.center),
+                      )),
+                    ),
+                  ),
+                  // <<< FIN DE MEJORA
                 ),
               ],
             ),
@@ -159,7 +177,7 @@ class _TechnicianDetails extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _TechnicianDetails({required this.technician, required this.onEdit, required this.onDelete});
+  const _TechnicianDetails({super.key, required this.technician, required this.onEdit, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {

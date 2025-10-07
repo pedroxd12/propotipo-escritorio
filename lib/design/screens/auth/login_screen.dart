@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
             constraints: const BoxConstraints(maxWidth: 400),
             child: Card(
               elevation: 8,
-              shadowColor: Colors.black.withOpacity(0.1),
+              shadowColor: Colors.black.withValues(alpha: 0.1),
               child: Padding(
                 padding: const EdgeInsets.all(32.0),
                 child: Form(

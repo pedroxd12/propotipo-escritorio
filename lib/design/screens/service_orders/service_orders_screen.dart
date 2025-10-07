@@ -48,7 +48,6 @@ class ServiceOrdersScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       ElevatedButton.icon(
-                        // --- CORRECCIÓN 3: LLAMAR AL MÉTODO DEL FORMULARIO ---
                         onPressed: () => _showOrderForm(context),
                         icon: const Icon(Icons.add_circle_outline),
                         label: const Text("Nueva Orden de Servicio"),
@@ -71,30 +70,46 @@ class ServiceOrdersScreen extends StatelessWidget {
                 const SizedBox(width: 24),
                 Expanded(
                   flex: 3,
-                  child: provider.selectedOrder != null
-                      ? _OrderDetails(
-                    key: ValueKey(provider.selectedOrder!.id),
-                    order: provider.selectedOrder!,
-                    // --- CORRECCIÓN 4: PASAR LA ORDEN AL FORMULARIO PARA EDITAR ---
-                    onEdit: () => _showOrderForm(context, order: provider.selectedOrder!),
-                    onDelete: () async {
-                      final confirm = await _showDeleteConfirmation(context);
-                      if (confirm == true) {
-                        provider.deleteOrder(provider.selectedOrder!.id);
-                      }
+                  // >>> MEJORA DE FLUIDEZ: AnimatedSwitcher para el panel de detalles
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          // Pequeño efecto de escala para darle más dinamismo
+                          scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
+                          child: child,
+                        ),
+                      );
                     },
-                  )
-                      : const Card(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24.0),
-                        child: Text(
-                          "Seleccione una orden para ver sus detalles o cree una nueva.",
-                          textAlign: TextAlign.center,
+                    child: provider.selectedOrder != null
+                        ? _OrderDetails(
+                      // Clave única forzando la reconstrucción y animación
+                      key: ValueKey(provider.selectedOrder!.id),
+                      order: provider.selectedOrder!,
+                      onEdit: () => _showOrderForm(context, order: provider.selectedOrder!),
+                      onDelete: () async {
+                        final confirm = await _showDeleteConfirmation(context);
+                        if (confirm == true) {
+                          provider.deleteOrder(provider.selectedOrder!.id);
+                        }
+                      },
+                    )
+                        : const Card(
+                      key: ValueKey('empty_details'), // Clave para el estado vacío
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text(
+                            "Seleccione una orden para ver sus detalles o cree una nueva.",
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  // <<< FIN DE MEJORA
                 ),
               ],
             ),
@@ -237,7 +252,7 @@ class _OrderDetails extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(child: Text(tech.nombres[0])),
                 title: Text(tech.nombreCompleto),
-                subtitle: const Text('Técnico'),
+                subtitle: Text(tech.perfilTecnico?.especialidad ?? 'Técnico'),
               )),
               const SizedBox(height: 16),
               _SectionTitle(title: 'Costos'),
@@ -304,7 +319,8 @@ class _StatusDot extends StatelessWidget {
   Color _getStatusColor() {
     switch (status) {
       case OrdenStatus.finalizada: return AppColors.successColor;
-      case OrdenStatus.en_proceso: return AppColors.infoColor;
+      case OrdenStatus.enProceso:
+      case OrdenStatus.enCamino: return AppColors.infoColor;
       case OrdenStatus.agendada: return AppColors.warningColor;
       case OrdenStatus.cancelada: return AppColors.errorColor;
       default: return AppColors.textTertiaryColor;
@@ -330,18 +346,20 @@ class _StatusBadge extends StatelessWidget {
 
   Color _getBackgroundColor() {
     switch (status) {
-      case OrdenStatus.finalizada: return AppColors.successColor.withOpacity(0.1);
-      case OrdenStatus.en_proceso: return AppColors.infoColor.withOpacity(0.1);
-      case OrdenStatus.agendada: return AppColors.warningColor.withOpacity(0.1);
-      case OrdenStatus.cancelada: return AppColors.errorColor.withOpacity(0.1);
-      default: return AppColors.textTertiaryColor.withOpacity(0.1);
+      case OrdenStatus.finalizada: return AppColors.successColor.withValues(alpha: 0.1);
+      case OrdenStatus.enProceso:
+      case OrdenStatus.enCamino: return AppColors.infoColor.withValues(alpha: 0.1);
+      case OrdenStatus.agendada: return AppColors.warningColor.withValues(alpha: 0.1);
+      case OrdenStatus.cancelada: return AppColors.errorColor.withValues(alpha: 0.1);
+      default: return AppColors.textTertiaryColor.withValues(alpha: 0.1);
     }
   }
 
   Color _getForegroundColor() {
     switch (status) {
       case OrdenStatus.finalizada: return AppColors.successColor;
-      case OrdenStatus.en_proceso: return AppColors.infoColor;
+      case OrdenStatus.enProceso:
+      case OrdenStatus.enCamino: return AppColors.infoColor;
       case OrdenStatus.agendada: return AppColors.warningColor;
       case OrdenStatus.cancelada: return AppColors.errorColor;
       default: return AppColors.textTertiaryColor;

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
 import 'package:serviceflow/data/models/agenda_event.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 
 class MiniCalendarWidget extends StatelessWidget {
   final VoidCallback onTap;
@@ -32,248 +31,171 @@ class MiniCalendarWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
         ),
         clipBehavior: Clip.antiAlias,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Calcular espacios fijos
-            const headerHeight = 60.0; // Espacio para el título y icono
-            const footerHeight = 40.0; // Espacio para el texto inferior
-            const paddingTotal = 32.0; // Padding total vertical (16*2)
-            const spacingTotal = 24.0; // SizedBox spacings
+        child: Container(
+          color: AppColors.surfaceColor,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final availableHeight = constraints.maxHeight;
+                final availableWidth = constraints.maxWidth;
 
-            // Calcular altura disponible para el calendario
-            final fixedElements = headerHeight + footerHeight + paddingTotal + spacingTotal;
-            final availableHeight = constraints.maxHeight - fixedElements;
+                // Mejoras en responsive design
+                final isCompact = availableHeight < 300 || availableWidth < 300;
+                final isSmall = availableHeight < 250;
 
-            // Establecer límites mínimos y máximos para el calendario
-            final calendarHeight = availableHeight.clamp(120.0, 300.0).toDouble();
+                // Ajustes de estilo adaptativos
+                final titleFontSize = isSmall ? 12.0 : isCompact ? 13.0 : 14.0;
+                final iconSize = isSmall ? 16.0 : isCompact ? 18.0 : 20.0;
+                final cellFontSize = isSmall ? 7.0 : isCompact ? 8.0 : 9.0;
+                final daysFontSize = isSmall ? 5.0 : isCompact ? 6.0 : 7.0;
+                final rowHeight = isSmall ? 18.0 : isCompact ? 20.0 : 24.0;
+                final daysOfWeekHeight = isSmall ? 10.0 : isCompact ? 12.0 : 14.0;
+                final markerSize = isSmall ? 1.5 : 2.0;
 
-            // Ajustar tamaños de fuente según el espacio disponible
-            final isCompact = calendarHeight < 180;
-            final headerFontSize = isCompact ? 8.0 : 10.0;
-            final cellFontSize = isCompact ? 10.0 : 12.0;
-            final daysFontSize = isCompact ? 8.0 : 9.0;
-            final markerSize = isCompact ? 2.0 : 3.0;
-            final cellMargin = isCompact ? 0.5 : 1.0;
-            final headerPadding = isCompact ? 2.0 : 4.0;
-
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header fijo
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_month_outlined, color: AppColors.primaryColor),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Calendario',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                return Column(
+                  children: [
+                    // Header de estilo unificado
+                    Container(
+                      padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_month_outlined,
+                            color: AppColors.primaryColor,
+                            size: iconSize,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Calendario',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: titleFontSize,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                    ),
+                    const Divider(height: 1, color: AppColors.outline),
+                    const SizedBox(height: 8),
 
-                  // Calendario con altura dinámica
-                  SizedBox(
-                    height: calendarHeight,
-                    child: ClipRect( // Asegurar que no se salga del contenedor
-                      child: SingleChildScrollView(
-                        physics: const NeverScrollableScrollPhysics(), // Deshabilitar scroll manual
-                        child: AbsorbPointer(
-                          child: TableCalendar<AgendaEvent>(
-                            locale: 'es_ES',
-                            firstDay: DateTime.utc(2020, 1, 1),
-                            lastDay: DateTime.utc(2030, 12, 31),
-                            focusedDay: focusedDay,
-                            selectedDayPredicate: (day) => isSameDay(selectedDay, day),
-                            onDaySelected: onDaySelected,
-                            onPageChanged: (focusedDay) {},
-                            eventLoader: (day) {
-                              final dayKey = DateTime.utc(day.year, day.month, day.day);
-                              return eventsByDay[dayKey] ?? [];
-                            },
-                            calendarFormat: CalendarFormat.month,
-                            availableCalendarFormats: const {
-                              CalendarFormat.month: 'Month',
-                            },
-                            headerStyle: HeaderStyle(
-                              formatButtonVisible: false,
-                              titleCentered: true,
-                              headerPadding: EdgeInsets.symmetric(vertical: headerPadding),
-                              titleTextStyle: TextStyle(
-                                fontSize: cellFontSize + 2,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            calendarStyle: CalendarStyle(
-                              defaultTextStyle: TextStyle(fontSize: cellFontSize),
-                              weekendTextStyle: TextStyle(fontSize: cellFontSize),
-                              selectedTextStyle: TextStyle(fontSize: cellFontSize, color: Colors.white),
-                              todayTextStyle: TextStyle(fontSize: cellFontSize, color: Colors.white),
-                              markerSize: markerSize,
-                              cellMargin: EdgeInsets.all(cellMargin),
-                              selectedDecoration: BoxDecoration(
-                                color: AppColors.primaryColor,
-                                shape: BoxShape.circle,
-                              ),
-                              todayDecoration: BoxDecoration(
-                                color: AppColors.primaryColor.withOpacity(0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              markersMaxCount: isCompact ? 1 : 3, // Limitar marcadores si es compacto
-                            ),
-                            daysOfWeekStyle: DaysOfWeekStyle(
-                              weekdayStyle: TextStyle(fontSize: daysFontSize),
-                              weekendStyle: TextStyle(fontSize: daysFontSize),
-                            ),
+                    // Calendario con scroll mejorado y gestos habilitados
+                    Expanded(
+                      child: TableCalendar<AgendaEvent>(
+                        locale: 'es_ES',
+                        firstDay: DateTime.utc(2020, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        focusedDay: focusedDay,
+                        selectedDayPredicate: (day) => isSameDay(selectedDay, day),
+                        onDaySelected: onDaySelected,
+                        onPageChanged: (focusedDay) {},
+                        eventLoader: (day) {
+                          final dayKey = DateTime.utc(day.year, day.month, day.day);
+                          return eventsByDay[dayKey] ?? [];
+                        },
+                        calendarFormat: CalendarFormat.month,
+                        availableCalendarFormats: const {
+                          CalendarFormat.month: 'Month',
+                        },
+                        // Habilitar gestos para navegación
+                        pageJumpingEnabled: true,
+                        pageAnimationEnabled: true,
+                        pageAnimationCurve: Curves.easeInOutCubic,
+                        pageAnimationDuration: const Duration(milliseconds: 300),
+
+                        // Estilos de calendario compactos y responsive
+                        headerStyle: const HeaderStyle(
+                          formatButtonVisible: false,
+                          titleCentered: true,
+                          leftChevronVisible: false,
+                          rightChevronVisible: false,
+                          headerPadding: EdgeInsets.symmetric(vertical: 2),
+                        ),
+                        calendarStyle: CalendarStyle(
+                          defaultTextStyle: TextStyle(
+                            fontSize: cellFontSize,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          weekendTextStyle: TextStyle(
+                            fontSize: cellFontSize,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          selectedTextStyle: TextStyle(
+                            fontSize: cellFontSize,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          todayTextStyle: TextStyle(
+                            fontSize: cellFontSize,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          markerSize: markerSize,
+                          markersMaxCount: 3,
+                          cellMargin: EdgeInsets.all(isSmall ? 0.5 : 1.0),
+                          selectedDecoration: const BoxDecoration(
+                            color: AppColors.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                          todayDecoration: BoxDecoration(
+                            color: AppColors.primaryColor.withAlpha(128),
+                            shape: BoxShape.circle,
+                          ),
+                          outsideTextStyle: TextStyle(
+                            fontSize: cellFontSize,
+                            color: AppColors.textTertiaryColor,
+                          ),
+                          // Mejorar interactividad de las celdas
+                          canMarkersOverflow: false,
+                          markerDecoration: const BoxDecoration(
+                            color: AppColors.accentColor,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-                  // Footer fijo
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Toque para regresar al mapa',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondaryColor,
-                        fontSize: isCompact ? 9.0 : 11.0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-// ALTERNATIVA 2: Si necesitas que sea más flexible, usa esta versión
-class MiniCalendarWidgetFlexible extends StatelessWidget {
-  final VoidCallback onTap;
-  final DateTime selectedDay;
-  final DateTime focusedDay;
-  final Function(DateTime, DateTime) onDaySelected;
-  final Map<DateTime, List<AgendaEvent>> eventsByDay;
-
-  const MiniCalendarWidgetFlexible({
-    super.key,
-    required this.onTap,
-    required this.selectedDay,
-    required this.focusedDay,
-    required this.onDaySelected,
-    required this.eventsByDay,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppColors.outline),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Calcular la altura disponible para el calendario
-            final availableHeight = constraints.maxHeight - 120; // Restar espacio para header y footer
-            final calendarHeight = availableHeight > 150 ? availableHeight : 150;
-
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_month_outlined, color: AppColors.primaryColor),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Calendario',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Usar la altura calculada
-                  SizedBox(
-                    height: calendarHeight.toDouble(),
-                    child: SingleChildScrollView( // Añadir scroll por si acaso
-                      child: AbsorbPointer(
-                        child: TableCalendar<AgendaEvent>(
-                          locale: 'es_ES',
-                          firstDay: DateTime.utc(2020, 1, 1),
-                          lastDay: DateTime.utc(2030, 12, 31),
-                          focusedDay: focusedDay,
-                          selectedDayPredicate: (day) => isSameDay(selectedDay, day),
-                          onDaySelected: onDaySelected,
-                          onPageChanged: (focusedDay) {},
-                          eventLoader: (day) {
-                            final dayKey = DateTime.utc(day.year, day.month, day.day);
-                            return eventsByDay[dayKey] ?? [];
-                          },
-                          calendarFormat: CalendarFormat.month,
-                          availableCalendarFormats: const {
-                            CalendarFormat.month: 'Month',
-                          },
-                          headerStyle: const HeaderStyle(
-                            formatButtonVisible: false,
-                            titleCentered: true,
-                            headerPadding: EdgeInsets.symmetric(vertical: 4.0),
+                        daysOfWeekStyle: DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(
+                            fontSize: daysFontSize,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondaryColor,
                           ),
-                          calendarStyle: CalendarStyle(
-                            defaultTextStyle: const TextStyle(fontSize: 11),
-                            weekendTextStyle: const TextStyle(fontSize: 11),
-                            selectedTextStyle: const TextStyle(fontSize: 11, color: Colors.white),
-                            todayTextStyle: const TextStyle(fontSize: 11, color: Colors.white),
-                            markerSize: 3.0,
-                            cellMargin: const EdgeInsets.all(1.0),
-                            selectedDecoration: BoxDecoration(
-                              color: AppColors.primaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            todayDecoration: BoxDecoration(
-                              color: AppColors.primaryColor.withOpacity(0.5),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          daysOfWeekStyle: const DaysOfWeekStyle(
-                            weekdayStyle: TextStyle(fontSize: 9),
-                            weekendStyle: TextStyle(fontSize: 9),
+                          weekendStyle: TextStyle(
+                            fontSize: daysFontSize,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.errorColor,
                           ),
                         ),
+                        rowHeight: rowHeight,
+                        daysOfWeekHeight: daysOfWeekHeight,
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Toque para regresar al mapa',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondaryColor,
-                        fontSize: 10,
-                      ),
+                    const SizedBox(height: 6),
+
+                    // Footer para indicar la acción
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(
+                          Icons.touch_app_outlined,
+                          size: 10,
+                          color: AppColors.textSecondaryColor.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          'Toca para ver el mapa',
+                          style: TextStyle(
+                            color: AppColors.textSecondaryColor,
+                            fontSize: isSmall ? 6 : 7,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );

@@ -1,7 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // Asegúrate que esta importación esté
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:serviceflow/core/routes/app_router.dart';
@@ -52,9 +52,8 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
-          // --- CORRECCIÓN AQUÍ ---
-          GlobalMaterialLocalizations.delegate, // Nombre correcto
-          GlobalWidgetsLocalizations.delegate,  // Nombre correcto
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: const [

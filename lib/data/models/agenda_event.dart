@@ -53,8 +53,8 @@ Color _getStatusColor(OrdenStatus status) {
   switch (status) {
     case OrdenStatus.finalizada:
       return Colors.green.shade600;
-    case OrdenStatus.en_proceso:
-    case OrdenStatus.en_camino:
+    case OrdenStatus.enProceso:
+    case OrdenStatus.enCamino:
       return Colors.blue.shade600;
     case OrdenStatus.cancelada:
       return Colors.red.shade400;

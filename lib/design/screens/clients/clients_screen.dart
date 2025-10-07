@@ -51,28 +51,44 @@ class ClientsScreen extends StatelessWidget {
                 const SizedBox(width: 24),
                 Expanded(
                   flex: 3,
-                  child: provider.selectedClient != null
-                      ? _ClientDetails(
-                    client: provider.selectedClient!,
-                    onEdit: () => _showClientForm(context, provider, client: provider.selectedClient),
-                    onDelete: () async {
-                      final confirm = await _showDeleteConfirmation(context);
-                      if (confirm == true) {
-                        provider.deleteClient(provider.selectedClient!.id);
-                      }
+                  // >>> MEJORA DE FLUIDEZ: AnimatedSwitcher para el panel de detalles
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
+                          child: child,
+                        ),
+                      );
                     },
-                  )
-                      : const Card(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24.0),
-                        child: Text(
-                          "Seleccione un cliente para ver sus detalles o añada uno nuevo.",
-                          textAlign: TextAlign.center,
+                    child: provider.selectedClient != null
+                        ? _ClientDetails(
+                      key: ValueKey(provider.selectedClient!.id), // Clave para la animación
+                      client: provider.selectedClient!,
+                      onEdit: () => _showClientForm(context, provider, client: provider.selectedClient),
+                      onDelete: () async {
+                        final confirm = await _showDeleteConfirmation(context);
+                        if (confirm == true) {
+                          provider.deleteClient(provider.selectedClient!.id);
+                        }
+                      },
+                    )
+                        : const Card(
+                      key: ValueKey('empty_details'), // Clave para el estado vacío
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text(
+                            "Seleccione un cliente para ver sus detalles o añada uno nuevo.",
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  // <<< FIN DE MEJORA
                 ),
               ],
             ),
@@ -181,13 +197,15 @@ class _ClientDetails extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _ClientDetails({required this.client, required this.onEdit, required this.onDelete});
+  const _ClientDetails({required this.client, required this.onEdit, required this.onDelete, required ValueKey<String> key});
 
   Future<void> _launchMap(Direccion address) async {
+    // URL de ejemplo con coordenadas
     final Uri googleMapsUrl = Uri.parse('http://maps.google.com/maps?q=${address.latitud},${address.longitud}');
     if (await canLaunchUrl(googleMapsUrl)) {
       await launchUrl(googleMapsUrl);
     } else {
+      // Manejo de errores más amigable para el usuario
       throw 'No se pudo abrir el mapa para ${address.latitud},${address.longitud}';
     }
   }

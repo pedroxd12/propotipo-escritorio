@@ -210,8 +210,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   height: 200,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.primaryColor.withOpacity(
-                      0.03 * _backgroundAnimation.value,
+                    color: AppColors.primaryColor.withValues(
+                      alpha: 0.03 * _backgroundAnimation.value,
                     ),
                   ),
                 ),
@@ -227,8 +227,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   height: 300,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppColors.primaryColor.withOpacity(
-                      0.02 * _backgroundAnimation.value,
+                    color: AppColors.primaryColor.withValues(
+                      alpha: 0.02 * _backgroundAnimation.value,
                     ),
                   ),
                 ),
@@ -248,8 +248,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        AppColors.primaryColor.withOpacity(
-                          0.1 * _backgroundAnimation.value,
+                        AppColors.primaryColor.withValues(
+                          alpha: 0.1 * _backgroundAnimation.value,
                         ),
                         Colors.transparent,
                       ],
@@ -273,8 +273,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     height: 4,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primaryColor.withOpacity(
-                        0.1 * _backgroundAnimation.value,
+                      color: AppColors.primaryColor.withValues(
+                        alpha: 0.1 * _backgroundAnimation.value,
                       ),
                     ),
                   ),
@@ -391,14 +391,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     gradient: LinearGradient(
                       colors: [
                         AppColors.primaryColor,
-                        AppColors.primaryColor.withBlue(
-                          (AppColors.primaryColor.blue + 30).clamp(0, 255),
-                        ),
+                        Color.lerp(
+                          AppColors.primaryColor,
+                          Colors.blue,
+                          0.3,
+                        )!,
                       ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primaryColor.withOpacity(0.25),
+                        color: AppColors.primaryColor.withValues(alpha: 0.25),
                         blurRadius: 8, // Reducido de 12 a 8
                         offset: const Offset(0, 4), // Reducido de 6 a 4
                       ),
@@ -429,7 +431,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         Icon(
                           Icons.arrow_forward_rounded,
                           size: 18, // Reducido de 20 a 18
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ],
                     ),
@@ -445,7 +447,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.primaryColor.withOpacity(0.2),
+                      color: AppColors.primaryColor.withValues(alpha: 0.2),
                       width: 1.5,
                     ),
                   ),
@@ -486,7 +488,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   '¿Ya tienes una cuenta? Inicia sesión para continuar',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondaryColor.withOpacity(0.7),
+                    color: AppColors.textSecondaryColor.withValues(alpha: 0.7),
                     fontSize: 12,
                   ),
                 ),

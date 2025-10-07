@@ -1,4 +1,5 @@
 // lib/design/screens/home/home_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -16,8 +17,6 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
 import 'package:serviceflow/design/state/service_order_provider.dart';
 import 'package:serviceflow/design/state/technician_provider.dart';
-
-// Importa el nuevo widget para el calendario pequeño
 import 'package:serviceflow/design/widgets/home/mini_calendar_widget.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -29,7 +28,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isEditMode = false;
-  Map<String, AgendaEvent> _pendingChanges = {};
+  final Map<String, AgendaEvent> _pendingChanges = {};
   List<AgendaEvent> _events = [];
   Map<DateTime, List<AgendaEvent>> _eventsByDay = {};
   List<AgendaEvent> _selectedDayEvents = [];
@@ -38,11 +37,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
   bool _isMapExpanded = false;
+  bool _initialLoadComplete = false;
 
-  // Controladores de animación para mejorar la UX
+  final ScrollController _scrollController = ScrollController();
+  final ScrollController _eventsScrollController = ScrollController();
+  Timer? _scrollTimer;
+  bool _isDragging = false;
+
   late AnimationController _calendarAnimationController;
   late AnimationController _eventListAnimationController;
+  late AnimationController _pageTransitionController;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   final double _hourRowHeight = 90.0;
   final int _startHour = 7;
@@ -62,102 +68,115 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     initializeDateFormatting('es_ES', null);
 
-    // Inicializar controladores de animación
     _calendarAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 350),
       vsync: this,
     );
-
     _eventListAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 450),
+      vsync: this,
+    );
+    _pageTransitionController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
+    _fadeAnimation = CurvedAnimation(
+      parent: _eventListAnimationController,
+      curve: Curves.easeInOutCubic,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.05),
+      end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _eventListAnimationController,
-      curve: Curves.easeInOut,
+      curve: Curves.easeOutCubic,
     ));
 
-    _createSampleOrders();
-    _loadSampleEvents();
-
-    // Iniciar animación
-    _eventListAnimationController.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_initialLoadComplete && mounted) {
+        _loadSampleEvents();
+        _eventListAnimationController.forward();
+        setState(() => _initialLoadComplete = true);
+      }
+    });
   }
 
   @override
   void dispose() {
     _calendarAnimationController.dispose();
     _eventListAnimationController.dispose();
+    _pageTransitionController.dispose();
+    _scrollController.dispose();
+    _eventsScrollController.dispose();
+    _scrollTimer?.cancel();
     super.dispose();
   }
 
   void _createSampleOrders() {
+    final technicianProvider = context.read<TechnicianProvider>();
+    final tecnicos = technicianProvider.filteredTechnicians;
+
+    final tecnico1 = tecnicos.isNotEmpty && tecnicos[0].id == 'user-2'
+        ? tecnicos[0]
+        : Usuario(
+        id: 'user-2',
+        empresaId: 'emp-1',
+        nombres: 'Carlos',
+        apellidoPaterno: 'Sánchez',
+        email: 'carlos@ex.com',
+        telefono: '1',
+        rol: 'Tecnico');
+
+    final tecnico2 = tecnicos.length > 1 && tecnicos[1].id == 'user-3'
+        ? tecnicos[1]
+        : Usuario(
+        id: 'user-3',
+        empresaId: 'emp-1',
+        nombres: 'María',
+        apellidoPaterno: 'Gómez',
+        email: 'maria@ex.com',
+        telefono: '2',
+        rol: 'Tecnico');
+
     final today = DateTime.now();
     final mondayThisWeek = today.subtract(Duration(days: today.weekday - 1));
 
     final cliente1 = Cliente(
         id: 'cl-1',
         empresaId: 'emp-1',
-        nombreCuenta: 'TechCorp',
-        telefonoPrincipal: 'N/A',
-        emailFacturacion: 'N/A',
+        nombreCuenta: 'TechCorp S.A. de C.V.',
+        telefonoPrincipal: '555-1111-2222',
+        emailFacturacion: 'facturacion@techcorp.com',
         direcciones: [
           Direccion(
               id: 'dir-1',
-              calleYNumero: 'N/A',
-              colonia: 'N/A',
-              codigoPostal: 'N/A',
-              municipio: 'N/A',
-              estado: 'N/A',
+              calleYNumero: 'Av. Melchor Ocampo 15',
+              colonia: 'Centro',
+              codigoPostal: '60950',
+              municipio: 'Lázaro Cardenas',
+              estado: 'Michoacán',
+              referencias: 'Frente al malecón de la cultura y las artes.',
               latitud: 17.9625,
-              longitud: -102.2033
-          )
-        ]
-    );
+              longitud: -102.2033)
+        ]);
 
     final cliente2 = Cliente(
         id: 'cl-2',
         empresaId: 'emp-1',
         nombreCuenta: 'Zeta Solutions',
-        telefonoPrincipal: 'N/A',
-        emailFacturacion: 'N/A',
+        telefonoPrincipal: '555-3333-4444',
+        emailFacturacion: 'compras@betamax.com',
         direcciones: [
           Direccion(
               id: 'dir-2',
-              calleYNumero: 'N/A',
-              colonia: 'N/A',
-              codigoPostal: 'N/A',
-              municipio: 'N/A',
-              estado: 'N/A',
+              calleYNumero: 'Blvd. Industrial 100',
+              colonia: 'Parque Industrial',
+              codigoPostal: '12346',
+              municipio: 'Springfield',
+              estado: 'Oregon',
               latitud: 17.9740,
-              longitud: -102.1995
-          )
-        ]
-    );
-
-    final tecnico1 = Usuario(
-        id: 'user-2',
-        empresaId: 'emp-1',
-        nombres: 'Ana',
-        apellidoPaterno: 'Pérez',
-        email: 'N/A',
-        telefono: 'N/A',
-        rol: 'Tecnico'
-    );
-
-    final tecnico2 = Usuario(
-        id: 'user-3',
-        empresaId: 'emp-1',
-        nombres: 'Carlos',
-        apellidoPaterno: 'Ruiz',
-        email: 'N/A',
-        telefono: 'N/A',
-        rol: 'Tecnico'
-    );
+              longitud: -102.1995)
+        ]);
 
     _orden1 = OrdenServicio(
       id: 'OS-12564',
@@ -168,8 +187,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       servicio: Servicio(id: 'ser-1', nombre: 'Reunión equipo Alfa', costoBase: 0),
       status: OrdenStatus.agendada,
       fechaSolicitud: DateTime.now(),
-      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day, 9, 0),
-      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day, 10, 0),
+      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day, 9, 0),
+      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day, 10, 0),
       detallesSolicitud: 'Planificación semanal del sprint.',
       costoTotal: 0,
       tecnicosAsignados: [tecnico1],
@@ -181,11 +202,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       folio: 'OS-12565',
       cliente: cliente1,
       direccion: cliente1.direcciones.first,
-      servicio: Servicio(id: 'ser-2', nombre: 'Visita Cliente TechCorp', costoBase: 0),
-      status: OrdenStatus.en_proceso,
+      servicio:
+      Servicio(id: 'ser-2', nombre: 'Visita Cliente TechCorp', costoBase: 0),
+      status: OrdenStatus.enProceso,
       fechaSolicitud: DateTime.now(),
-      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day, 11, 0),
-      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day, 12, 30),
+      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day, 11, 0),
+      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day, 12, 30),
       detallesSolicitud: 'Mantenimiento preventivo del servidor principal.',
       costoTotal: 0,
       tecnicosAsignados: [tecnico2],
@@ -197,11 +221,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       folio: 'OS-12566',
       cliente: cliente2,
       direccion: cliente2.direcciones.first,
-      servicio: Servicio(id: 'ser-3', nombre: 'Soporte Remoto Zeta', costoBase: 0),
+      servicio:
+      Servicio(id: 'ser-3', nombre: 'Soporte Remoto Zeta', costoBase: 0),
       status: OrdenStatus.agendada,
       fechaSolicitud: DateTime.now(),
-      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day, 11, 0),
-      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day, 13, 0),
+      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day, 11, 30),
+      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day, 13, 30),
       detallesSolicitud: 'Soporte remoto para el sistema de facturación.',
       costoTotal: 0,
       tecnicosAsignados: [tecnico1],
@@ -213,11 +240,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       folio: 'OS-12567',
       cliente: cliente2,
       direccion: cliente2.direcciones.first,
-      servicio: Servicio(id: 'ser-4', nombre: 'Capacitación Interna', costoBase: 0),
+      servicio:
+      Servicio(id: 'ser-4', nombre: 'Capacitación Interna', costoBase: 0),
       status: OrdenStatus.finalizada,
       fechaSolicitud: DateTime.now(),
-      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day + 2, 15, 0),
-      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month, mondayThisWeek.day + 2, 17, 0),
+      fechaAgendadaInicio: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day + 2, 15, 0),
+      fechaAgendadaFin: DateTime(mondayThisWeek.year, mondayThisWeek.month,
+          mondayThisWeek.day + 2, 17, 0),
       detallesSolicitud: 'Capacitación sobre nuevo software.',
       costoTotal: 0,
       tecnicosAsignados: [tecnico2],
@@ -225,6 +255,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _loadSampleEvents() {
+    if (!mounted) return;
+    _createSampleOrders();
+
     _events = [
       AgendaEvent.fromOrdenServicio(_orden1),
       AgendaEvent.fromOrdenServicio(_orden2),
@@ -232,36 +265,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       AgendaEvent.fromOrdenServicio(_orden4),
     ];
 
+    _rebuildEventMapAndUpdateUI();
+  }
+
+  void _rebuildEventMapAndUpdateUI() {
     _eventsByDay = {};
     for (var event in _events) {
-      final day = DateTime.utc(event.startTime.year, event.startTime.month, event.startTime.day);
-      if (_eventsByDay[day] == null) {
-        _eventsByDay[day] = [];
-      }
+      final day = DateTime.utc(
+          event.startTime.year, event.startTime.month, event.startTime.day);
+      _eventsByDay[day] ??= [];
       _eventsByDay[day]!.add(event);
     }
-
-    // Actualizar eventos del día seleccionado
     _updateSelectedDayEvents();
   }
 
   void _updateSelectedDayEvents() {
-    final dayKey = DateTime.utc(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+    final dayKey =
+    DateTime.utc(_selectedDay.year, _selectedDay.month, _selectedDay.day);
     final eventsForDay = _eventsByDay[dayKey] ?? [];
 
-    // Ordenar eventos por hora de inicio
     eventsForDay.sort((a, b) => a.startTime.compareTo(b.startTime));
 
-    setState(() {
-      _selectedDayEvents = eventsForDay;
-    });
+    if (mounted) {
+      setState(() {
+        _selectedDayEvents = eventsForDay;
+      });
 
-    // Animar la actualización de la lista
-    _eventListAnimationController.reset();
-    _eventListAnimationController.forward();
+      _eventListAnimationController.reset();
+      _eventListAnimationController.forward();
+    }
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!mounted) return;
     setState(() {
       _selectedDay = selectedDay;
       _focusedDay = focusedDay;
@@ -274,11 +310,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   DateTime get _startOfWeek {
-    DateTime date = _currentDate;
-    return date.subtract(Duration(days: date.weekday - 1));
+    return _currentDate.subtract(Duration(days: _currentDate.weekday - 1));
   }
 
   void _previous() {
+    if (!mounted) return;
     setState(() {
       if (_currentView == 'Semana') {
         _currentDate = _currentDate.subtract(const Duration(days: 7));
@@ -291,6 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _next() {
+    if (!mounted) return;
     setState(() {
       if (_currentView == 'Semana') {
         _currentDate = _currentDate.add(const Duration(days: 7));
@@ -303,6 +340,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _goToToday() {
+    if (!mounted) return;
     setState(() {
       _currentDate = DateTime.now();
       _selectedDay = DateTime.now();
@@ -312,21 +350,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _saveChanges() {
+    if (!mounted) return;
+
     if (_pendingChanges.isEmpty) {
-      setState(() {
-        _isEditMode = false;
-      });
+      setState(() => _isEditMode = false);
       return;
     }
 
     setState(() {
       for (var changedEvent in _pendingChanges.values) {
-        if (changedEvent.id == _orden1.id) _orden1 = changedEvent.ordenOriginal;
-        if (changedEvent.id == _orden2.id) _orden2 = changedEvent.ordenOriginal;
-        if (changedEvent.id == _orden3.id) _orden3 = changedEvent.ordenOriginal;
-        if (changedEvent.id == _orden4.id) _orden4 = changedEvent.ordenOriginal;
+        final index = _events.indexWhere((e) => e.id == changedEvent.id);
+        if (index != -1) {
+          _events[index] = changedEvent;
+        }
       }
-      _loadSampleEvents();
+      _rebuildEventMapAndUpdateUI();
       _pendingChanges.clear();
       _isEditMode = false;
     });
@@ -341,36 +379,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _cancelChanges() {
+    if (!mounted) return;
     setState(() {
       _pendingChanges.clear();
       _isEditMode = false;
     });
+    _rebuildEventMapAndUpdateUI();
   }
 
   void _toggleMapExpand() {
-    setState(() {
-      _isMapExpanded = !_isMapExpanded;
-    });
+    if (!mounted) return;
+    setState(() => _isMapExpanded = !_isMapExpanded);
   }
 
   @override
   Widget build(BuildContext context) {
+    final serviceOrderProvider = context.watch<ServiceOrderProvider>();
+
+    final todayOrders = serviceOrderProvider.filteredOrders.where((order) {
+      final now = DateTime.now();
+      return order.fechaAgendadaInicio.day == now.day &&
+          order.fechaAgendadaInicio.month == now.month &&
+          order.fechaAgendadaInicio.year == now.year;
+    }).toList();
+
+    final todayEventsForMap =
+    todayOrders.map((e) => AgendaEvent.fromOrdenServicio(e)).toList();
+
+    if (!_initialLoadComplete) {
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      body: _buildMainContent(),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _buildMainContent(todayEventsForMap),
+      ),
     );
   }
 
-  Widget _buildMainContent() {
-    final technicianProvider = context.watch<TechnicianProvider>();
-    final serviceOrderProvider = context.watch<ServiceOrderProvider>();
-
-    final todayEvents = serviceOrderProvider.filteredOrders.where((order) =>
-    order.fechaAgendadaInicio.day == DateTime.now().day &&
-        order.fechaAgendadaInicio.month == DateTime.now().month &&
-        order.fechaAgendadaInicio.year == DateTime.now().year
-    ).toList();
-
+  Widget _buildMainContent(List<AgendaEvent> todayEventsForMap) {
     return Row(
       children: [
         Container(
@@ -386,7 +438,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Expanded(
                 flex: 4,
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 350),
+                  switchInCurve: Curves.easeInOutCubic,
+                  switchOutCurve: Curves.easeInOutCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: 0.95, end: 1.0)
+                            .animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
+                  // --- CORRECCIÓN DE LÓGICA AQUÍ ---
+                  // Si el mapa está expandido, muestra el mini calendario.
+                  // Si no, muestra el mini mapa.
                   child: _isMapExpanded
                       ? MiniCalendarWidget(
                     key: const ValueKey('mini-calendar'),
@@ -398,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   )
                       : TechnicianMapWidget(
                     key: const ValueKey('technician-map-small'),
-                    orders: todayEvents.map((e) => AgendaEvent.fromOrdenServicio(e)).toList(),
+                    orders: todayEventsForMap,
                     technicianLocations: _technicianLocations,
                     onExpand: _toggleMapExpand,
                     isExpanded: _isMapExpanded,
@@ -419,7 +486,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               clipBehavior: Clip.antiAlias,
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeInOutCubic,
+                switchOutCurve: Curves.easeInOutCubic,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.02, 0),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
                 child: _isMapExpanded
                     ? TechnicianMapWidget(
                   key: const ValueKey('technician-map-expanded'),
@@ -438,14 +519,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildCurrentView() {
-    switch (_currentView) {
-      case 'Semana':
-        return _buildWeekView();
-      case 'Mes':
-        return _buildMonthView();
-      default:
-        return _buildWeekView();
-    }
+    return _currentView == 'Semana' ? _buildWeekView() : _buildMonthView();
   }
 
   Widget _buildMonthView() {
@@ -453,120 +527,163 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       children: [
         _buildViewHeader(),
         Expanded(
-          child: Row(
-            children: [
-              // Calendario del mes
-              Expanded(
-                flex: 3,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: TableCalendar<AgendaEvent>(
-                    locale: 'es_ES',
-                    firstDay: DateTime.utc(2020, 1, 1),
-                    lastDay: DateTime.utc(2030, 12, 31),
-                    focusedDay: _focusedDay,
-                    selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                    onDaySelected: _onDaySelected,
-                    onPageChanged: (focusedDay) {
-                      setState(() {
-                        _focusedDay = focusedDay;
-                      });
-                    },
-                    eventLoader: (day) {
-                      final dayKey = DateTime.utc(day.year, day.month, day.day);
-                      return _eventsByDay[dayKey] ?? [];
-                    },
-                    calendarStyle: CalendarStyle(
-                      outsideDaysVisible: false,
-                      weekendTextStyle: TextStyle(color: AppColors.errorColor.withOpacity(0.8)),
-                      holidayTextStyle: TextStyle(color: AppColors.errorColor.withOpacity(0.8)),
-                      todayDecoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.3),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primaryColor, width: 1.5),
-                      ),
-                      selectedDecoration: const BoxDecoration(
-                        color: AppColors.primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      markerDecoration: const BoxDecoration(
-                        color: AppColors.accentColor,
-                        shape: BoxShape.circle,
-                      ),
-                      markersMaxCount: 3,
-                      markerMargin: const EdgeInsets.symmetric(horizontal: 1.5),
-                      cellMargin: const EdgeInsets.all(4.0),
-                      defaultTextStyle: const TextStyle(fontSize: 16),
-                      selectedTextStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      todayTextStyle: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryColor,
-                      ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 800;
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    Container(
+                      height: constraints.maxHeight * 0.4,
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildResponsiveCalendar(),
                     ),
-                    headerStyle: const HeaderStyle(
-                      formatButtonVisible: false,
-                      titleCentered: true,
-                      leftChevronVisible: false,
-                      rightChevronVisible: false,
-                      titleTextStyle: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const Divider(height: 1, color: AppColors.outline),
+                    Expanded(
+                      child: _buildDayAgendaPanel(),
                     ),
-                    daysOfWeekStyle: const DaysOfWeekStyle(
-                      weekdayStyle: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      weekendStyle: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: AppColors.errorColor,
-                      ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildResponsiveCalendar(),
                     ),
                   ),
-                ),
-              ),
-              // Separador vertical
-              Container(
-                width: 1,
-                color: AppColors.outline,
-                margin: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              // Panel de eventos del día seleccionado
-              Expanded(
-                flex: 2,
-                child: _buildDayAgendaImproved(),
-              ),
-            ],
+                  Container(
+                    width: 1,
+                    color: AppColors.outline,
+                    margin: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: _buildDayAgendaPanel(),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ],
     );
   }
 
+  Widget _buildResponsiveCalendar() {
+    return InteractiveViewer(
+      minScale: 0.8,
+      maxScale: 2.0,
+      panEnabled: true,
+      scaleEnabled: true,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: TableCalendar<AgendaEvent>(
+          locale: 'es_ES',
+          firstDay: DateTime.utc(2020, 1, 1),
+          lastDay: DateTime.utc(2030, 12, 31),
+          focusedDay: _focusedDay,
+          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+          onDaySelected: _onDaySelected,
+          onPageChanged: (focusedDay) {
+            if (mounted) {
+              setState(() => _focusedDay = focusedDay);
+            }
+          },
+          eventLoader: (day) {
+            final dayKey = DateTime.utc(day.year, day.month, day.day);
+            return _eventsByDay[dayKey] ?? [];
+          },
+          pageJumpingEnabled: true,
+          pageAnimationEnabled: true,
+          pageAnimationCurve: Curves.easeInOutCubic,
+          pageAnimationDuration: const Duration(milliseconds: 300),
+          calendarStyle: CalendarStyle(
+            outsideDaysVisible: false,
+            weekendTextStyle: TextStyle(
+                color: AppColors.errorColor.withValues(alpha: 0.8)),
+            holidayTextStyle: TextStyle(
+                color: AppColors.errorColor.withValues(alpha: 0.8)),
+            todayDecoration: BoxDecoration(
+              color: AppColors.primaryColor.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: AppColors.primaryColor, width: 1.5),
+            ),
+            selectedDecoration: const BoxDecoration(
+              color: AppColors.primaryColor,
+              shape: BoxShape.circle,
+            ),
+            markerDecoration: const BoxDecoration(
+              color: AppColors.accentColor,
+              shape: BoxShape.circle,
+            ),
+            markersMaxCount: 3,
+            markerMargin: const EdgeInsets.symmetric(horizontal: 1.5),
+            cellMargin: const EdgeInsets.all(4.0),
+            defaultTextStyle: const TextStyle(fontSize: 16),
+            selectedTextStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            todayTextStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryColor,
+            ),
+            canMarkersOverflow: false,
+            markerSizeScale: 0.2,
+          ),
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            leftChevronVisible: false,
+            rightChevronVisible: false,
+            titleTextStyle: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          daysOfWeekStyle: const DaysOfWeekStyle(
+            weekdayStyle: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            weekendStyle: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: AppColors.errorColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildViewHeader() {
     final DateFormat dayMonthFormat = DateFormat('d MMM', 'es_ES');
     final weekStart = _startOfWeek;
-    String headerText;
-
-    switch (_currentView) {
-      case 'Mes':
-        headerText = DateFormat('MMMM y', 'es_ES').format(_focusedDay);
-        break;
-      default:
-        headerText = "${dayMonthFormat.format(weekStart)} - ${dayMonthFormat.format(weekStart.add(const Duration(days: 6)))}";
-    }
+    final String headerText = _currentView == 'Mes'
+        ? DateFormat('MMMM y', 'es_ES').format(_focusedDay)
+        : '${dayMonthFormat.format(weekStart)} - ${dayMonthFormat.format(weekStart.add(const Duration(days: 6)))}';
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.outline, width: 0.5)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white,
+            AppColors.primaryColor.withValues(alpha: 0.03),
+          ],
+        ),
+        border: const Border(
+          bottom: BorderSide(color: AppColors.outline, width: 0.5),
+        ),
       ),
       child: Row(
         children: [
@@ -596,139 +713,141 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (_currentView == 'Semana')
-            if (_isEditMode)
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: _cancelChanges,
-                    icon: const Icon(Icons.cancel_outlined, color: AppColors.errorColor, size: 20),
-                    label: const Text('Cancelar', style: TextStyle(color: AppColors.errorColor)),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: _saveChanges,
-                    icon: const Icon(Icons.check_circle_outline, size: 20),
-                    label: const Text('Guardar'),
-                    style: FilledButton.styleFrom(backgroundColor: AppColors.successColor),
-                  ),
-                  const SizedBox(width: 16),
-                ],
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.edit_calendar_outlined),
-                tooltip: 'Editar Agenda',
-                onPressed: () => setState(() => _isEditMode = true),
-              ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.outline),
-              borderRadius: BorderRadius.circular(8),
+          if (_currentView == 'Semana') ..._buildEditModeButtons(),
+          _buildViewSelector(),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildEditModeButtons() {
+    if (!_isEditMode) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.edit_calendar_outlined),
+          tooltip: 'Editar Agenda',
+          onPressed: () {
+            if (mounted) setState(() => _isEditMode = true);
+          },
+        ),
+      ];
+    }
+
+    return [
+      TextButton.icon(
+        onPressed: _cancelChanges,
+        icon: const Icon(Icons.cancel_outlined,
+            color: AppColors.errorColor, size: 20),
+        label: const Text('Cancelar',
+            style: TextStyle(color: AppColors.errorColor)),
+      ),
+      const SizedBox(width: 8),
+      FilledButton.icon(
+        onPressed: _saveChanges,
+        icon: const Icon(Icons.check_circle_outline, size: 20),
+        label: const Text('Guardar'),
+        style: FilledButton.styleFrom(backgroundColor: AppColors.successColor),
+      ),
+      const SizedBox(width: 16),
+    ];
+  }
+
+  Widget _buildViewSelector() {
+    return _ViewSelectorWidget(
+      currentView: _currentView,
+      isEditMode: _isEditMode,
+      onChanged: (newValue) {
+        if (_isEditMode) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Guarde o cancele los cambios para cambiar de vista.'),
+              duration: Duration(seconds: 2),
             ),
-            child: DropdownButton<String>(
-              value: _currentView,
-              items: <String>['Semana', 'Mes'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value, style: const TextStyle(fontSize: 14)),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (_isEditMode) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Guarde o cancele los cambios para cambiar de vista.'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                  return;
-                }
-                setState(() => _currentView = newValue!);
-              },
-              underline: const SizedBox(),
-              icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-            ),
+          );
+          return;
+        }
+        if (mounted && newValue != null) {
+          setState(() => _currentView = newValue);
+        }
+      },
+    );
+  }
+
+  Widget _buildDayAgendaPanel() {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDayAgendaHeader(),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _selectedDayEvents.isEmpty
+                ? _buildEmptyEventsState()
+                : _buildEventsList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDayAgendaImproved() {
+  Widget _buildDayAgendaHeader() {
     return Container(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
         children: [
-          // Header del día seleccionado
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppColors.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primaryColor.withOpacity(0.2)),
-            ),
-            child: Row(
+          const Icon(
+            Icons.calendar_today,
+            color: AppColors.primaryColor,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  color: AppColors.primaryColor,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('EEEE', 'es_ES').format(_selectedDay),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor,
-                        ),
-                      ),
-                      Text(
-                        DateFormat('d MMMM y', 'es_ES').format(_selectedDay),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondaryColor,
-                        ),
-                      ),
-                    ],
+                Text(
+                  DateFormat('EEEE', 'es_ES').format(_selectedDay),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primaryColor,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _selectedDayEvents.isEmpty
-                        ? AppColors.backgroundColor
-                        : AppColors.primaryColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_selectedDayEvents.length}',
-                    style: TextStyle(
-                      color: _selectedDayEvents.isEmpty
-                          ? AppColors.textSecondaryColor
-                          : Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                Text(
+                  DateFormat('d MMMM y', 'es_ES').format(_selectedDay),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondaryColor,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Lista de eventos
-          Expanded(
-            child: _selectedDayEvents.isEmpty
-                ? _buildEmptyEventsState()
-                : _buildEventsList(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _selectedDayEvents.isEmpty
+                  ? AppColors.backgroundColor
+                  : AppColors.primaryColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${_selectedDayEvents.length}',
+              style: TextStyle(
+                color: _selectedDayEvents.isEmpty
+                    ? AppColors.textSecondaryColor
+                    : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
           ),
         ],
       ),
@@ -743,7 +862,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Icon(
             Icons.event_busy_outlined,
             size: 64,
-            color: AppColors.textSecondaryColor.withOpacity(0.5),
+            color: AppColors.textSecondaryColor.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -758,7 +877,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             "No hay actividades programadas\npara este día",
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondaryColor.withOpacity(0.7),
+              color: AppColors.textSecondaryColor.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -767,198 +886,294 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEventsList() {
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ListView.separated(
-        itemCount: _selectedDayEvents.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final event = _selectedDayEvents[index];
-          return _buildEnhancedEventCard(event, index);
-        },
-      ),
-    );
-  }
-
-  Widget _buildEnhancedEventCard(AgendaEvent event, int index) {
-    final timeFormat = DateFormat('HH:mm');
-    final duration = event.endTime.difference(event.startTime);
-    final durationText = '${duration.inHours}h ${duration.inMinutes % 60}m';
-
-    // Determinar el color del status
-    Color statusColor = AppColors.primaryColor;
-    String statusText = 'Agendada';
-    IconData statusIcon = Icons.schedule;
-
-    switch (event.ordenOriginal.status) {
-      case OrdenStatus.en_proceso:
-        statusColor = AppColors.warningColor;
-        statusText = 'En Proceso';
-        statusIcon = Icons.play_circle_outline;
-        break;
-      case OrdenStatus.finalizada:
-        statusColor = AppColors.successColor;
-        statusText = 'Finalizada';
-        statusIcon = Icons.check_circle_outline;
-        break;
-      case OrdenStatus.cancelada:
-        statusColor = AppColors.errorColor;
-        statusText = 'Cancelada';
-        statusIcon = Icons.cancel_outlined;
-        break;
-      case OrdenStatus.agendada:
-      default:
-        statusColor = AppColors.primaryColor;
-        statusText = 'Agendada';
-        statusIcon = Icons.schedule;
-        break;
-    }
-
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 200 + (index * 50)),
-      curve: Curves.easeOutBack,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: event.color.withOpacity(0.3), width: 1),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _navigateToOrderDetail(event),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header con tiempo y status
-                Row(
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: event.color,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 16,
-                                color: AppColors.textSecondaryColor,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${timeFormat.format(event.startTime)} - ${timeFormat.format(event.endTime)}',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimaryColor,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '($durationText)',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondaryColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                statusIcon,
-                                size: 14,
-                                color: statusColor,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                statusText,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Título del evento
-                Text(
-                  event.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimaryColor,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-
-                // Información del cliente y técnico
-                _buildInfoRow(
-                  icon: Icons.business_outlined,
-                  label: 'Cliente',
-                  value: event.client,
-                ),
-                const SizedBox(height: 4),
-                _buildInfoRow(
-                  icon: Icons.person_outline,
-                  label: 'Técnico',
-                  value: event.technician,
-                ),
-
-                // Detalles adicionales si existen
-                if (event.ordenOriginal.detallesSolicitud?.isNotEmpty == true) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.outline.withOpacity(0.5)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.note_outlined,
-                          size: 16,
-                          color: AppColors.textSecondaryColor,
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification notification) {
+        if (notification is ScrollStartNotification) {
+          _eventListAnimationController.forward();
+        }
+        return false;
+      },
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: Scrollbar(
+            controller: _eventsScrollController,
+            thumbVisibility: true,
+            radius: const Radius.circular(8),
+            thickness: 6,
+            child: ListView.separated(
+              controller: _eventsScrollController,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              padding: const EdgeInsets.only(
+                bottom: 16,
+                right: 12,
+              ),
+              itemCount: _selectedDayEvents.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                return TweenAnimationBuilder<double>(
+                  duration: Duration(milliseconds: 300 + (index * 50)),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: 0.95 + (0.05 * value),
+                      child: Transform.translate(
+                        offset: Offset(0, 10 * (1 - value)),
+                        child: Opacity(
+                          opacity: value,
+                          child: child,
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            event.ordenOriginal.detallesSolicitud ?? '',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondaryColor,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
+                      ),
+                    );
+                  },
+                  child: _buildResponsiveEventCard(_selectedDayEvents[index]),
+                );
+              },
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildResponsiveEventCard(AgendaEvent event) {
+    final timeFormat = DateFormat('HH:mm');
+    final duration = event.endTime.difference(event.startTime);
+    final durationText = '${duration.inHours}h ${duration.inMinutes % 60}m';
+    final statusInfo = _getStatusInfo(event.ordenOriginal.status);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 300;
+        final isVeryCompact = constraints.maxWidth < 250;
+
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: event.color.withValues(alpha: 0.3), width: 1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _navigateToOrderDetail(event),
+              splashColor: event.color.withValues(alpha: 0.1),
+              highlightColor: event.color.withValues(alpha: 0.05),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.all(isVeryCompact ? 12 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: isVeryCompact ? 3 : 4,
+                          height: isCompact ? 35 : 40,
+                          decoration: BoxDecoration(
+                            color: event.color,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        SizedBox(width: isVeryCompact ? 8 : 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.access_time,
+                                        size: 14,
+                                        color: AppColors.textSecondaryColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          '${timeFormat.format(event.startTime)} - ${timeFormat.format(event.endTime)}',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textPrimaryColor,
+                                            fontSize: isVeryCompact ? 12 : null,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (!isVeryCompact)
+                                    Text(
+                                      '($durationText)',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                        color: AppColors.textSecondaryColor,
+                                        fontSize: isCompact ? 11 : null,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    statusInfo['icon'] as IconData,
+                                    size: isVeryCompact ? 12 : 14,
+                                    color: statusInfo['color'] as Color,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      statusInfo['text'] as String,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                        color: statusInfo['color'] as Color,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: isVeryCompact ? 11 : null,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: isVeryCompact ? 8 : 12),
+
+                    Text(
+                      event.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimaryColor,
+                        fontSize: isVeryCompact ? 14 : isCompact ? 15 : null,
+                      ),
+                      maxLines: isVeryCompact ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    SizedBox(height: isVeryCompact ? 6 : 8),
+
+                    if (isVeryCompact) ...[
+                      Text(
+                        '${event.client} • ${event.technician}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondaryColor,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ] else ...[
+                      _buildInfoRow(
+                        icon: Icons.business_outlined,
+                        label: 'Cliente',
+                        value: event.client,
+                      ),
+                      const SizedBox(height: 4),
+                      _buildInfoRow(
+                        icon: Icons.person_outline,
+                        label: 'Técnico',
+                        value: event.technician,
+                      ),
+                    ],
+
+                    if (!isVeryCompact && event.ordenOriginal.detallesSolicitud?.isNotEmpty == true) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: EdgeInsets.all(isCompact ? 6 : 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: AppColors.outline.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.note_outlined,
+                              size: isCompact ? 14 : 16,
+                              color: AppColors.textSecondaryColor,
+                            ),
+                            SizedBox(width: isCompact ? 6 : 8),
+                            Expanded(
+                              child: Text(
+                                event.ordenOriginal.detallesSolicitud ?? '',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: AppColors.textSecondaryColor,
+                                  fontSize: isCompact ? 11 : null,
+                                ),
+                                maxLines: isCompact ? 1 : 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Map<String, dynamic> _getStatusInfo(OrdenStatus status) {
+    switch (status) {
+      case OrdenStatus.enProceso:
+        return {
+          'color': AppColors.warningColor,
+          'text': 'En Proceso',
+          'icon': Icons.play_circle_outline,
+        };
+      case OrdenStatus.enCamino:
+        return {
+          'color': AppColors.infoColor,
+          'text': 'En Camino',
+          'icon': Icons.directions_car_outlined,
+        };
+      case OrdenStatus.finalizada:
+        return {
+          'color': AppColors.successColor,
+          'text': 'Finalizada',
+          'icon': Icons.check_circle_outline,
+        };
+      case OrdenStatus.cancelada:
+        return {
+          'color': AppColors.errorColor,
+          'text': 'Cancelada',
+          'icon': Icons.cancel_outlined,
+        };
+      case OrdenStatus.agendada:
+      default:
+        return {
+          'color': AppColors.primaryColor,
+          'text': 'Agendada',
+          'icon': Icons.schedule,
+        };
+    }
   }
 
   Widget _buildInfoRow({
@@ -995,45 +1210,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Método legacy mantenido para compatibilidad con vista semanal
-  Widget _buildDayAgenda({bool showDate = false}) {
-    if (_selectedDayEvents.isEmpty) {
-      return Column(
-        crossAxisAlignment: showDate ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          if (showDate)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-              child: Text(
-                DateFormat('EEEE, d MMMM y', 'es_ES').format(_selectedDay),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-          const Expanded(
-            child: Center(child: Text("No hay eventos para este día.")),
-          ),
-        ],
-      );
-    }
+  Widget _buildWeekView() {
+    const days = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+    final weekStart = _startOfWeek;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showDate)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-            child: Text(
-              DateFormat('EEEE, d MMMM y', 'es_ES').format(_selectedDay),
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ),
+        _buildViewHeader(),
+        _buildWeekDayHeaders(days, weekStart),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: _selectedDayEvents.length,
-            itemBuilder: (context, index) {
-              final event = _selectedDayEvents[index];
-              return _buildEventCard(event);
+          child: Builder(
+            builder: (context) {
+              return Listener(
+                onPointerMove: (event) {
+                  if (!_isEditMode || !_isDragging) return;
+
+                  final RenderBox? scrollRenderBox = context.findRenderObject() as RenderBox?;
+                  if (scrollRenderBox == null) return;
+
+                  final localPosition = scrollRenderBox.globalToLocal(event.position);
+                  const scrollZoneHeight = 60.0;
+                  const scrollSpeed = 8.0;
+
+                  if (localPosition.dy < scrollZoneHeight) {
+                    _startAutoScroll(-scrollSpeed);
+                  } else if (localPosition.dy > scrollRenderBox.size.height - scrollZoneHeight) {
+                    _startAutoScroll(scrollSpeed);
+                  } else {
+                    _stopAutoScroll();
+                  }
+                },
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTimeColumn(),
+                      ...List.generate(7, (dayIndex) {
+                        return Expanded(
+                          child: _buildDayColumn(
+                              dayIndex, weekStart.add(Duration(days: dayIndex))),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              );
             },
           ),
         ),
@@ -1041,122 +1264,90 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildEventCard(AgendaEvent event) {
-    final timeFormat = DateFormat('HH:mm');
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12.0),
-      child: ListTile(
-        leading: Container(
-          width: 6,
-          decoration: BoxDecoration(
-            color: event.color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text('Cliente: ${event.client}\nTécnico: ${event.technician}'),
-        trailing: Text('${timeFormat.format(event.startTime)}\n${timeFormat.format(event.endTime)}'),
-        onTap: () => _navigateToOrderDetail(event),
+  Widget _buildWeekDayHeaders(List<String> days, DateTime weekStart) {
+    return Container(
+      height: 70,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.outline)),
       ),
-    );
-  }
+      child: Row(
+        children: [
+          const SizedBox(width: 80),
+          ...List.generate(7, (index) {
+            final dayDate = weekStart.add(Duration(days: index));
+            final isToday = DateUtils.isSameDay(DateTime.now(), dayDate);
+            final isSelected = DateUtils.isSameDay(_selectedDay, dayDate);
 
-  Widget _buildWeekView() {
-    final days = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
-    final weekStart = _startOfWeek;
-
-    return Column(
-      children: [
-        _buildViewHeader(),
-        Container(
-          height: 70,
-          decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.outline)),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 80),
-              ...List.generate(7, (index) {
-                final dayDate = weekStart.add(Duration(days: index));
-                bool isToday = DateUtils.isSameDay(DateTime.now(), dayDate);
-                bool isSelected = DateUtils.isSameDay(_selectedDay, dayDate);
-
-                return Expanded(
-                  child: Container(
+            return Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: AppColors.outline.withValues(alpha: 0.5)),
+                  ),
+                ),
+                child: InkWell(
+                  onTap: () => _onDaySelected(dayDate, dayDate),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(color: AppColors.outline.withOpacity(0.5)),
-                      ),
+                      color: isSelected
+                          ? AppColors.primaryColor.withValues(alpha: 0.1)
+                          : Colors.transparent,
                     ),
-                    child: InkWell(
-                      onTap: () => _onDaySelected(dayDate, dayDate),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? AppColors.primaryColor.withOpacity(0.1)
-                              : Colors.transparent,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          days[index],
+                          style:
+                          Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isSelected
+                                ? AppColors.primaryColor
+                                : AppColors.textSecondaryColor,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              days[index],
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: isSelected
+                        const SizedBox(height: 4),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isToday
+                                ? AppColors.primaryColor
+                                : isSelected
+                                ? AppColors.primaryColor.withValues(alpha: 0.2)
+                                : Colors.transparent,
+                          ),
+                          child: Center(
+                            child: Text(
+                              DateFormat('d').format(dayDate),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isToday
+                                    ? Colors.white
+                                    : isSelected
                                     ? AppColors.primaryColor
-                                    : AppColors.textSecondaryColor,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    : AppColors.textPrimaryColor,
+                                fontWeight: isToday || isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: isToday
-                                  ? AppColors.primaryColor
-                                  : isSelected
-                                  ? AppColors.primaryColor.withOpacity(0.2)
-                                  : Colors.transparent,
-                              child: Text(
-                                DateFormat('d').format(dayDate),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isToday
-                                      ? Colors.white
-                                      : isSelected
-                                      ? AppColors.primaryColor
-                                      : AppColors.textPrimaryColor,
-                                  fontWeight: isToday || isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                );
-              }),
-            ],
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildTimeColumn(),
-                ...List.generate(7, (dayIndex) {
-                  return Expanded(
-                    child: _buildDayColumn(dayIndex, weekStart.add(Duration(days: dayIndex))),
-                  );
-                }),
-              ],
-            ),
-          ),
-        ),
-      ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -1176,7 +1367,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               alignment: Alignment.topCenter,
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                "${NumberFormat("00").format(hour)}:00",
+                '${NumberFormat("00").format(hour)}:00',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondaryColor,
                 ),
@@ -1188,8 +1379,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _stopAutoScroll() {
+    _scrollTimer?.cancel();
+    _scrollTimer = null;
+  }
+
+  void _startAutoScroll(double velocity) {
+    if (_scrollTimer != null) return;
+
+    _scrollTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      final newOffset = _scrollController.offset + velocity;
+      if (newOffset < _scrollController.position.minScrollExtent ||
+          newOffset > _scrollController.position.maxScrollExtent) {
+        _stopAutoScroll();
+      } else {
+        _scrollController.jumpTo(newOffset);
+      }
+    });
+  }
+
   Widget _buildDayColumn(int dayIndexInWeek, DateTime dateForColumn) {
-    final dayKey = DateTime.utc(dateForColumn.year, dateForColumn.month, dateForColumn.day);
+    final dayKey = DateTime.utc(
+        dateForColumn.year, dateForColumn.month, dateForColumn.day);
 
     final Map<String, AgendaEvent> eventsForDisplayMap = {};
 
@@ -1200,7 +1411,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     for (var pendingEvent in _pendingChanges.values) {
-      final pendingDayKey = DateTime.utc(pendingEvent.startTime.year, pendingEvent.startTime.month, pendingEvent.startTime.day);
+      final pendingDayKey = DateTime.utc(pendingEvent.startTime.year,
+          pendingEvent.startTime.month, pendingEvent.startTime.day);
       if (isSameDay(pendingDayKey, dayKey)) {
         eventsForDisplayMap[pendingEvent.id] = pendingEvent;
       }
@@ -1210,23 +1422,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final eventLayoutParams = _layoutHelper.calculateLayout(eventsForDay);
 
     return DragTarget<AgendaEvent>(
-      onWillAccept: (data) => _isEditMode,
+      onWillAcceptWithDetails: (_) => _isEditMode,
       onAcceptWithDetails: (details) {
-        if (!_isEditMode) return;
-        final RenderBox? renderBox = _dayColumnKeys[dayIndexInWeek].currentContext?.findRenderObject() as RenderBox?;
+        _stopAutoScroll();
+        if (!_isEditMode || !mounted) return;
+
+        final renderBox = _dayColumnKeys[dayIndexInWeek]
+            .currentContext
+            ?.findRenderObject() as RenderBox?;
         if (renderBox == null) return;
 
         final localOffset = renderBox.globalToLocal(details.offset);
-        final minutesFromTop = (localOffset.dy / _hourRowHeight) * 60;
-        final clampedMinutes = minutesFromTop.clamp(0.0, (_endHour - _startHour) * 60.0);
+        final eventDurationMinutes = details.data.duration.inMinutes.toDouble();
+        final itemHeight = (eventDurationMinutes / 60.0) * _hourRowHeight;
 
-        int newHour = _startHour + (clampedMinutes / 60).floor();
-        int newMinute = (clampedMinutes % 60).round();
-        newMinute = (newMinute / 15).round() * 15;
-        if (newMinute >= 60) {
-          newHour++;
-          newMinute = 0;
+        double desiredTop = localOffset.dy;
+
+        final columnHeight = (_endHour - _startHour) * _hourRowHeight;
+        desiredTop = desiredTop.clamp(0.0, columnHeight - itemHeight);
+
+        final minutesFromStart = (desiredTop / _hourRowHeight) * 60.0;
+        int totalMinutes = (minutesFromStart / 15).round() * 15;
+
+        final totalAvailableMinutes = (_endHour - _startHour) * 60;
+        if (totalMinutes + eventDurationMinutes > totalAvailableMinutes) {
+          totalMinutes = totalAvailableMinutes - eventDurationMinutes.toInt();
         }
+
+        int newHour = _startHour + (totalMinutes / 60).floor();
+        int newMinute = totalMinutes % 60;
 
         setState(() {
           final eventToUpdate = details.data;
@@ -1240,6 +1464,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             newMinute,
           );
           final newEndTime = newStartTime.add(duration);
+
           final updatedOrden = eventToUpdate.ordenOriginal.copyWith(
             fechaAgendadaInicio: newStartTime,
             fechaAgendadaFin: newEndTime,
@@ -1249,17 +1474,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
       },
       builder: (context, candidateData, rejectedData) {
-        bool isSelected = DateUtils.isSameDay(dateForColumn, _selectedDay);
+        final isSelected = DateUtils.isSameDay(dateForColumn, _selectedDay);
+        final isHighlighted = candidateData.isNotEmpty;
 
-        return Container(
+        return AnimatedContainer(
           key: _dayColumnKeys[dayIndexInWeek],
+          duration: const Duration(milliseconds: 200),
           height: (_endHour - _startHour) * _hourRowHeight,
           decoration: BoxDecoration(
             border: Border(
-              left: BorderSide(color: AppColors.outline.withOpacity(0.5)),
+              left: BorderSide(color: AppColors.outline.withValues(alpha: 0.5)),
             ),
-            color: isSelected
-                ? AppColors.primaryColor.withOpacity(0.05)
+            color: isHighlighted
+                ? AppColors.primaryColor.withValues(alpha: 0.15)
+                : isSelected
+                ? AppColors.primaryColor.withValues(alpha: 0.05)
                 : Colors.transparent,
           ),
           child: LayoutBuilder(
@@ -1267,65 +1496,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  ...List.generate(
-                    (_endHour - _startHour),
-                        (index) => Positioned(
-                      top: index * _hourRowHeight,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        height: _hourRowHeight,
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: AppColors.outline.withOpacity(0.5)),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  ...eventLayoutParams.map((params) {
-                    final event = params.event;
-                    final topPosition = (event.startHourOffset - _startHour) * _hourRowHeight;
-                    final itemHeight = (event.duration.inMinutes / 60.0) * _hourRowHeight;
-                    final totalWidth = constraints.maxWidth;
-                    final itemWidth = totalWidth * params.width;
-                    final leftPosition = totalWidth * params.left;
-
-                    Widget eventWidget = AgendaItemWidget(
-                      event: event,
-                      onTap: () {
-                        if (!_isEditMode) _navigateToOrderDetail(event);
-                      },
-                      hourRowHeight: _hourRowHeight,
-                      startHourOfDay: _startHour,
-                    );
-
-                    return Positioned(
-                      top: topPosition,
-                      left: leftPosition,
-                      height: itemHeight,
-                      width: itemWidth,
-                      child: _isEditMode
-                          ? Draggable<AgendaEvent>(
-                        data: event,
-                        feedback: SizedBox(
-                          width: itemWidth,
-                          height: itemHeight,
-                          child: Material(
-                            elevation: 4.0,
-                            borderRadius: BorderRadius.circular(8),
-                            child: eventWidget,
-                          ),
-                        ),
-                        childWhenDragging: Opacity(
-                          opacity: 0.4,
-                          child: eventWidget,
-                        ),
-                        child: eventWidget,
-                      )
-                          : eventWidget,
-                    );
-                  }).toList(),
+                  ..._buildHourLines(),
+                  ..._buildEventWidgets(
+                      eventLayoutParams, constraints.maxWidth),
                 ],
               );
             },
@@ -1334,4 +1507,181 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
     );
   }
+
+  List<Widget> _buildHourLines() {
+    return List.generate(
+      (_endHour - _startHour),
+          (index) => Positioned(
+        top: index * _hourRowHeight,
+        left: 0,
+        right: 0,
+        child: Container(
+          height: _hourRowHeight,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.outline.withValues(alpha: 0.5)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildEventWidgets(
+      List<EventLayoutParams> eventLayoutParams, double totalWidth) {
+    return eventLayoutParams.map((params) {
+      final event = params.event;
+      final topPosition =
+          (event.startHourOffset - _startHour) * _hourRowHeight;
+      final itemHeight = (event.duration.inMinutes / 60.0) * _hourRowHeight;
+      final itemWidth = totalWidth * params.width;
+      final leftPosition = totalWidth * params.left;
+
+      final baseEventWidget = AgendaItemWidget(
+        event: event,
+        onTap: () {
+          if (!_isEditMode) _navigateToOrderDetail(event);
+        },
+        hourRowHeight: _hourRowHeight,
+        startHourOfDay: _startHour,
+      );
+
+      final eventWidget = MouseRegion(
+        cursor: _isEditMode ? SystemMouseCursors.move : SystemMouseCursors.click,
+        child: baseEventWidget,
+      );
+
+      return Positioned(
+        top: topPosition,
+        left: leftPosition,
+        height: itemHeight,
+        width: itemWidth,
+        child: _isEditMode
+            ? Draggable<AgendaEvent>(
+          data: event,
+          maxSimultaneousDrags: 1,
+          feedback: Opacity(
+            opacity: 0.85,
+            child: Transform.scale(
+              scale: 1.05,
+              child: SizedBox(
+                width: itemWidth,
+                height: itemHeight,
+                child: Material(
+                  elevation: 12.0,
+                  borderRadius: BorderRadius.circular(8),
+                  clipBehavior: Clip.antiAlias,
+                  shadowColor: event.color.withValues(alpha: 0.5),
+                  child: baseEventWidget,
+                ),
+              ),
+            ),
+          ),
+          childWhenDragging: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: event.color.withValues(alpha: 0.5),
+                width: 2,
+                style: BorderStyle.solid,
+              ),
+              color: event.color.withValues(alpha: 0.1),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.drag_indicator,
+                color: event.color.withValues(alpha: 0.3),
+                size: 32,
+              ),
+            ),
+          ),
+          onDragStarted: () {
+            if (mounted) setState(() => _isDragging = true);
+          },
+          onDragEnd: (details) {
+            if (mounted) setState(() => _isDragging = false);
+            _stopAutoScroll();
+          },
+          onDraggableCanceled: (velocity, offset) {
+            if (mounted) setState(() => _isDragging = false);
+            _stopAutoScroll();
+          },
+          child: eventWidget,
+        )
+            : eventWidget,
+      );
+    }).toList();
+  }
 }
+
+class _ViewSelectorWidget extends StatefulWidget {
+  final String currentView;
+  final bool isEditMode;
+  final ValueChanged<String?> onChanged;
+
+  const _ViewSelectorWidget({
+    required this.currentView,
+    required this.isEditMode,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ViewSelectorWidget> createState() => _ViewSelectorWidgetState();
+}
+
+class _ViewSelectorWidgetState extends State<_ViewSelectorWidget> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _isHovered
+              ? AppColors.primaryColor.withValues(alpha: 0.05)
+              : Colors.transparent,
+          border: Border.all(
+            color: _isHovered
+                ? AppColors.primaryColor
+                : AppColors.outline,
+            width: _isHovered ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: DropdownButton<String>(
+          value: widget.currentView,
+          items: <String>['Semana', 'Mes'].map((String value) {
+            return DropdownMenuItem<String>(
+              value: value,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: widget.currentView == value
+                      ? AppColors.primaryColor
+                      : AppColors.textPrimaryColor,
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: widget.onChanged,
+          underline: const SizedBox(),
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            size: 20,
+            color: _isHovered ? AppColors.primaryColor : AppColors.textSecondaryColor,
+          ),
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          elevation: 4,
+        ),
+      ),
+    );
+  }
+}
+

@@ -91,7 +91,7 @@ class ServiceOrderRepository {
         cliente: _cliente2,
         direccion: _cliente2.direcciones.first,
         servicio: Servicio(id: 'ser-2', nombre: 'Instalación Panel Solar', costoBase: 25000.00),
-        status: OrdenStatus.en_proceso,
+        status: OrdenStatus.enProceso,
         fechaSolicitud: DateTime.now().subtract(const Duration(days: 2)),
         fechaAgendadaInicio: DateTime.now().subtract(const Duration(hours: 4)),
         fechaAgendadaFin: DateTime.now().add(const Duration(hours: 8)),
