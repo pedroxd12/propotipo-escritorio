@@ -10,6 +10,16 @@ set(BINARY_NAME "serviceflow")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# Suprimir warning dev CMP0175 de plugins que usan add_custom_command(TARGET ... DEPENDS)
+# Solo si la política existe en la versión de CMake en uso.
+if(POLICY CMP0175)
+  # Asegura OLD en este directorio
+  cmake_policy(SET CMP0175 OLD)
+  # Y fuerza el valor por defecto para subdirectorios/proyectos que llamen a
+  # cmake_minimum_required()/cmake_policy(VERSION), como plugins.
+  set(CMAKE_POLICY_DEFAULT_CMP0175 OLD)
+endif()
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)

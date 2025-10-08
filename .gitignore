@@ -19,10 +19,9 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code (ignorar configuraciones del editor)
+.vscode/
+*.code-workspace
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -33,6 +32,58 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+.metadata
+.packages
+coverage/
+
+# FVM (Flutter Version Manager)
+.fvm/
+
+# Archivos de entorno adicionales
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# Android
+/android/.gradle/
+/android/.cxx/
+/android/local.properties
+/android/key.properties
+/android/**/generated/
+/android/**/intermediates/
+/android/**/outputs/
+/android/build/
+/android/app/*.keystore
+/android/app/*.jks
+/android/*.keystore
+/android/*.jks
+
+# iOS
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/ephemeral/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/Flutter.podspec
+/ios/Runner.xcworkspace/xcuserdata/
+/ios/Runner.xcodeproj/xcuserdata/
+/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# macOS
+/macos/Pods/
+/macos/.symlinks/
+/macos/Flutter/ephemeral/
+/macos/Runner.xcworkspace/xcuserdata/
+/macos/Runner.xcodeproj/xcuserdata/
+
+# Windows
+/windows/flutter/ephemeral/
+/.vs/
+/windows/.vs/
+
+# Linux
+/linux/flutter/ephemeral/
 
 # Symbolication related
 app.*.symbols
