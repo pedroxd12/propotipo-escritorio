@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:serviceflow/design/state/service_order_provider.dart';
 import 'package:serviceflow/design/state/technician_provider.dart';
 import 'package:serviceflow/design/widgets/home/mini_calendar_widget.dart';
+import 'package:serviceflow/design/widgets/order/order_detail_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -306,7 +307,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _navigateToOrderDetail(AgendaEvent event) {
-    context.push('/order-detail/${event.id}', extra: event);
+    // Abre el modal flotante con animación
+    OrderDetailModal.show(context, event);
   }
 
   DateTime get _startOfWeek {
@@ -430,9 +432,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           margin: const EdgeInsets.fromLTRB(16, 16, 0, 16),
           child: Column(
             children: [
-              const Expanded(
+              Expanded(
                 flex: 5,
-                child: DailyAgendaPanel(),
+                child: DailyAgendaPanel(todayEvents: todayEventsForMap),
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -519,11 +521,44 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildCurrentView() {
-    return _currentView == 'Semana' ? _buildWeekView() : _buildMonthView();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        final scaleAnimation = Tween<double>(
+          begin: 0.92,
+          end: 1.0,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+        ));
+
+        final fadeAnimation = Tween<double>(
+          begin: 0.0,
+          end: 1.0,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+        ));
+
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: ScaleTransition(
+            scale: scaleAnimation,
+            child: child,
+          ),
+        );
+      },
+      child: _currentView == 'Semana'
+          ? _buildWeekView()
+          : _buildMonthView(),
+    );
   }
 
   Widget _buildMonthView() {
     return Column(
+      key: const ValueKey('month-view'),
       children: [
         _buildViewHeader(),
         Expanded(
@@ -1632,53 +1667,108 @@ class _ViewSelectorWidget extends StatefulWidget {
 class _ViewSelectorWidgetState extends State<_ViewSelectorWidget> {
   bool _isHovered = false;
 
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: _isHovered
-              ? AppColors.primaryColor.withValues(alpha: 0.05)
-              : Colors.transparent,
-          border: Border.all(
-            color: _isHovered
-                ? AppColors.primaryColor
-                : AppColors.outline,
-            width: _isHovered ? 1.5 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButton<String>(
-          value: widget.currentView,
-          items: <String>['Semana', 'Mes'].map((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(
+  void _showViewMenu(BuildContext context) {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(button.size.bottomLeft(Offset.zero), ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      elevation: 4,
+      items: <String>['Semana', 'Mes'].map((String value) {
+        return PopupMenuItem<String>(
+          value: value,
+          child: Row(
+            children: [
+              if (widget.currentView == value)
+                const Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: Icon(
+                    Icons.check,
+                    color: AppColors.primaryColor,
+                    size: 18,
+                  ),
+                ),
+              Text(
                 value,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: widget.currentView == value
+                      ? FontWeight.w600
+                      : FontWeight.normal,
                   color: widget.currentView == value
                       ? AppColors.primaryColor
                       : AppColors.textPrimaryColor,
                 ),
               ),
-            );
-          }).toList(),
-          onChanged: widget.onChanged,
-          underline: const SizedBox(),
-          icon: Icon(
-            Icons.keyboard_arrow_down,
-            size: 20,
-            color: _isHovered ? AppColors.primaryColor : AppColors.textSecondaryColor,
+            ],
           ),
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          elevation: 4,
+        );
+      }).toList(),
+    ).then((String? value) {
+      if (value != null) {
+        widget.onChanged(value);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: InkWell(
+        onTap: () => _showViewMenu(context),
+        borderRadius: BorderRadius.circular(8),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minWidth: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? AppColors.primaryColor.withValues(alpha: 0.05)
+                : Colors.transparent,
+            border: Border.all(
+              color: _isHovered
+                  ? AppColors.primaryColor
+                  : AppColors.outline,
+              width: _isHovered ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  widget.currentView,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primaryColor,
+                  ),
+                  overflow: TextOverflow.visible,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.keyboard_arrow_down,
+                size: 20,
+                color: _isHovered ? AppColors.primaryColor : AppColors.textSecondaryColor,
+              ),
+            ],
+          ),
         ),
       ),
     );

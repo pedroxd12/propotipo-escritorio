@@ -1,44 +1,19 @@
 // lib/design/widgets/home/daily_agenda_panel.dart
 import 'package:flutter/material.dart';
 import 'package:serviceflow/core/theme/app_colors.dart';
+import 'package:serviceflow/data/models/agenda_event.dart';
+import 'package:serviceflow/design/widgets/order/order_detail_modal.dart';
 
 class DailyAgendaPanel extends StatelessWidget {
-  const DailyAgendaPanel({super.key});
+  final List<AgendaEvent> todayEvents;
+
+  const DailyAgendaPanel({
+    super.key,
+    this.todayEvents = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Datos de ejemplo para las tareas de hoy
-    final List<Map<String, dynamic>> todaysTasks = [
-      {
-        "time": "09:00",
-        "task": "Reunión equipo Alfa",
-        "client": "Interno",
-        "priority": "high",
-        "icon": Icons.groups_rounded,
-      },
-      {
-        "time": "11:30",
-        "task": "Mantenimiento Servidor",
-        "client": "TechCorp",
-        "priority": "medium",
-        "icon": Icons.storage_rounded,
-      },
-      {
-        "time": "14:00",
-        "task": "Instalación Software",
-        "client": "BetaMax Corp",
-        "priority": "low",
-        "icon": Icons.install_desktop_rounded,
-      },
-      {
-        "time": "16:30",
-        "task": "Soporte Remoto",
-        "client": "Zeta Solutions",
-        "priority": "high",
-        "icon": Icons.support_agent_rounded,
-      },
-    ];
-
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -69,7 +44,7 @@ class DailyAgendaPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${todaysTasks.length}',
+                    '${todayEvents.length}',
                     style: const TextStyle(
                       color: AppColors.primaryColor,
                       fontSize: 12,
@@ -82,13 +57,44 @@ class DailyAgendaPanel extends StatelessWidget {
           ),
           const Divider(height: 1, indent: 20, endIndent: 20),
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: todaysTasks.length,
-              itemBuilder: (context, index) {
-                final task = todaysTasks[index];
-                return _buildTaskItem(context, task);
-              },
+            child: todayEvents.isEmpty
+                ? _buildEmptyState(context)
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: todayEvents.length,
+                    itemBuilder: (context, index) {
+                      return _buildTaskItem(context, todayEvents[index]);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 48,
+            color: AppColors.successColor.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Sin eventos para hoy',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondaryColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '¡Día libre!',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textTertiaryColor,
             ),
           ),
         ],
@@ -96,73 +102,113 @@ class DailyAgendaPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskItem(BuildContext context, Map<String, dynamic> task) {
-    Color priorityColor;
-    switch (task['priority']) {
-      case 'high':
-        priorityColor = AppColors.errorColor;
-        break;
-      case 'medium':
-        priorityColor = AppColors.warningColor;
-        break;
-      default:
-        priorityColor = AppColors.successColor;
-    }
+  Widget _buildTaskItem(BuildContext context, AgendaEvent event) {
+    final statusInfo = _getStatusInfo(event.ordenOriginal.status);
+    final timeFormat = '${event.startTime.hour.toString().padLeft(2, '0')}:${event.startTime.minute.toString().padLeft(2, '0')}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.outline.withValues(alpha: 0.5), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => OrderDetailModal.show(context, event),
+          borderRadius: BorderRadius.circular(12),
+          child: Ink(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: priorityColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: event.color.withValues(alpha: 0.3),
+                width: 1.5,
+              ),
             ),
-            child: Icon(
-              task['icon'],
-              color: priorityColor,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  task['task'],
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: event.color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(
+                    statusInfo['icon'] as IconData,
+                    color: event.color,
+                    size: 16,
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.business_rounded,
-                      size: 12,
-                      color: AppColors.textTertiaryColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        task['client'],
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiaryColor,
-                          fontSize: 11,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.business_rounded,
+                            size: 12,
+                            color: AppColors.textTertiaryColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              event.client,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppColors.textTertiaryColor,
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: event.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        timeFormat,
+                        style: TextStyle(
+                          color: event.color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (statusInfo['color'] as Color).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        statusInfo['text'] as String,
+                        style: TextStyle(
+                          color: statusInfo['color'] as Color,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -170,28 +216,44 @@ class DailyAgendaPanel extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  task['time'],
-                  style: const TextStyle(
-                    color: AppColors.primaryColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  Map<String, dynamic> _getStatusInfo(status) {
+    switch (status.toString()) {
+      case 'OrdenStatus.enProceso':
+        return {
+          'color': AppColors.warningColor,
+          'text': 'En Proceso',
+          'icon': Icons.play_circle_outline,
+        };
+      case 'OrdenStatus.enCamino':
+        return {
+          'color': AppColors.infoColor,
+          'text': 'En Camino',
+          'icon': Icons.directions_car_outlined,
+        };
+      case 'OrdenStatus.finalizada':
+        return {
+          'color': AppColors.successColor,
+          'text': 'Finalizada',
+          'icon': Icons.check_circle_outline,
+        };
+      case 'OrdenStatus.cancelada':
+        return {
+          'color': AppColors.errorColor,
+          'text': 'Cancelada',
+          'icon': Icons.cancel_outlined,
+        };
+      case 'OrdenStatus.agendada':
+      default:
+        return {
+          'color': AppColors.primaryColor,
+          'text': 'Agendada',
+          'icon': Icons.schedule,
+        };
+    }
   }
 }
