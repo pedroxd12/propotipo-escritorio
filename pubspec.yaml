@@ -30,6 +30,10 @@ dependencies:
   google_maps_flutter: ^2.1.8
   webview_windows: ^0.4.0
   flutter_dotenv: ^6.0.0
+  uuid: ^4.2.1
+  dio: ^5.9.0
+  image_picker: ^1.0.7
+  file_picker: ^8.0.0+1
 
 dev_dependencies:
   flutter_test:

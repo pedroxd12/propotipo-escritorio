@@ -449,7 +449,7 @@ class _TechnicianMapWidgetState extends State<TechnicianMapWidget>
               console.error('Error al cargar Google Maps API');
               const loadingEl = document.getElementById('loading');
               if (loadingEl) {
-                loadingEl.innerHTML = '<div class="error-message">No se pudo cargar Google Maps. Verifique la clave de API y la conexión a internet.</div>';
+                loadingEl.innerHTML = '<div class="error-message">Verifique la conexión a internet.</div>';
               }
             }
             
